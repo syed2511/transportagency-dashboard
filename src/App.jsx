@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { jsPDF } from "jspdf";
+import jsPDF from "jspdf";
 import 'jspdf-autotable';
 import { db, auth } from './firebaseConfig.js';
 
@@ -539,7 +539,7 @@ function PartiesView({ parties, db, userId, handleDelete, handleDeleteRequest, s
     ); 
 }
         
-function StatementView({ bills, lrs, parties, pdfScriptsLoaded, showAlert }) {
+function StatementView({ bills, lrs, parties, showAlert }) {
     const dueBillsByPartyAndCompany = bills.filter(b => b.status === 'Due').reduce((acc, bill) => {
         const party = parties.find(p => p.name === bill.partyName);
         if (party) {
@@ -583,8 +583,7 @@ function StatementView({ bills, lrs, parties, pdfScriptsLoaded, showAlert }) {
                             </div>
                             <button
                                 onClick={() => handleDownload(statementGroup)}
-                                disabled={!pdfScriptsLoaded}
-                                className="btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed self-end sm:self-center">
+                                className="btn-primary flex items-center gap-2 self-end sm:self-center">
                                 <DownloadIcon className="h-5 w-5"/>
                                 Download Statement
                             </button>
@@ -755,10 +754,10 @@ function App() {
         const props = { db, userId: user?.uid, setView, lrs, bills, parties, handleDeleteRequest, handleDelete, showAlert, onEditParty: handleOpenPartyModal };
         switch (view) {
             case 'add_lr': return <LrForm {...props} existingLr={editingLr} />;
-            case 'billing': return <BillingView {...props} pdfScriptsLoaded={true} />;
+            case 'billing': return <BillingView {...props} />;
             case 'create_bill': return <CreateBillForm {...props} />;
             case 'parties': return <PartiesView {...props} />;
-            case 'statements': return <StatementView {...props} pdfScriptsLoaded={true}/>;
+            case 'statements': return <StatementView {...props}/>;
             case 'lrs': default: return <LrView {...props} handleEditLr={handleEditLr} />;
         }
     };
