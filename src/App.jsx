@@ -1,0 +1,709 @@
+import React from 'react';
+import { jsPDF } from "jspdf";
+import 'jspdf-autotable';
+import { db, auth } from './firebaseConfig.js';
+
+// --- Icon Components ---
+const TruckIcon = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M5 18H3c-.6 0-1-.4-1-1V7c0-.6.4-1 1-1h10c.6 0 1 .4 1 1v11" /><path d="M14 9h4l4 4v4h-8v-4l-4-4Z" /><path d="M10 18h4" /><circle cx="7" cy="18" r="2" /><circle cx="17" cy="18" r="2" /></svg>;
+const PlusCircleIcon = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" /></svg>;
+const FileTextIcon = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><line x1="10" y1="9" x2="8" y2="9" /></svg>;
+const DollarSignIcon = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>;
+const DownloadIcon = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>;
+const UsersIcon = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>;
+const BriefcaseIcon = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>;
+const AlertTriangleIcon = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>;
+const InfoIcon = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>;
+const CheckCircleIcon = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>;
+
+// --- Global Configs & Helpers ---
+const getFinancialYear = () => { const today = new Date(); const currentMonth = today.getMonth(); const currentYear = today.getFullYear(); if (currentMonth >= 3) { return `${currentYear}-${(currentYear + 1).toString().slice(-2)}`; } else { return `${currentYear - 1}-${currentYear.toString().slice(-2)}`; } };
+const numberToWords = (num) => { const a = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen']; const b = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety']; const s = ['', 'thousand', 'lakh', 'crore']; const toWords = (n) => { let str = ""; if (n > 19) { str += b[Math.floor(n / 10)] + " " + a[n % 10]; } else { str += a[n]; } if (str) str += " "; return str; }; if (num === 0) return 'zero'; let n = Math.floor(num); let output = ""; output += toWords(n % 100); n = Math.floor(n / 100); output = toWords(n % 100) + (n % 100 ? "hundred " : "") + output; n = Math.floor(n / 100); for (let i = 1; i < 4; i++) { let chunk = n % 100; if (chunk) { output = toWords(chunk) + s[i] + " " + output; } n = Math.floor(n / 100); } return output.trim().toUpperCase() + " ONLY"; };
+
+const companyConfigs = {
+    "GLOBAL LOGISTICS": { header: "GLOBAL LOGISTICS", prefix: "GL", bank: "ICICI BANK", ac: "631505500740", ifsc: "ICIC0006315" },
+    "SRI KUMAR TRANSPORT": { header: "SRI KUMAR TRANSPORT", prefix: "SKT", bank: "ICICI BANK", ac: "631505013772", ifsc: "ICIC0006315" },
+    "SAI KUMAR TRANSPORT": { header: "SAI KUMAR TRANSPORT", prefix: "SAI", bank: "BANK OF MAHARASHTRA", ac: "60380956429", ifsc: "MAHB0001126" }
+};
+
+// --- PDF Generation Functions ---
+const generatePdfForBill = (bill, lrsInBill, showAlert) => { 
+    const doc = new jsPDF();
+    const config = companyConfigs[bill.companyName]; 
+    if (!config) { showAlert("Config Error", `No bill format configured for ${bill.companyName}`); return; } 
+    
+    const party = bill.billTo === 'Consignor' ? lrsInBill[0].consignor : lrsInBill[0].consignee; 
+    doc.setFontSize(22); 
+    doc.setFont("helvetica", "bold"); 
+    doc.text(config.header, 105, 20, { align: "center" }); 
+    doc.setFontSize(10); 
+    doc.setFont("helvetica", "normal"); 
+    doc.text("TRANSPORT COMMISSION AGENTS", 105, 26, { align: "center" }); 
+    doc.line(14, 28, 196, 28); 
+    doc.setFontSize(10); 
+    doc.setFont("helvetica", "bold"); 
+    doc.text(`BILL NO. ${config.prefix}/${bill.billNumber}/${getFinancialYear()}`, 14, 35); 
+    doc.text(`RAJAHMUNDRY`, 196, 35, { align: "right" }); 
+    doc.setFont("helvetica", "normal"); 
+    doc.text(`DT: ${new Date(bill.billDate).toLocaleDateString("en-GB")}`, 196, 40, { align: "right" }); 
+    let y = 48; doc.text("TO", 14, y); 
+    y += 6; 
+    doc.setFont("helvetica", "bold"); 
+    doc.text(party.name, 14, y); 
+    y += 6; 
+    doc.setFont("helvetica", "normal"); 
+    doc.text(party.address || "N/A", 14, y); 
+    if (party.gstin) { y += 6; doc.setFont("helvetica", "bold"); doc.text(`GSTIN: ${party.gstin}`, 14, y); } 
+    y += 10; 
+    doc.text("SUB: Regd - Transportation Bill.", 14, y); 
+    const tableBody = lrsInBill.map((lr, index) => {
+        const truckNumbers = (lr.truckDetails.truckNumbers || [lr.truckDetails.truckNumber]).filter(Boolean).join(', ');
+        return [lr.lrNumber, new Date(lr.bookingDate).toLocaleDateString("en-GB"), lr.loadingDetails.loadingPoint, lr.loadingDetails.unloadingPoint, lr.loadingDetails.weight, index === 0 ? `₹${bill.totalAmount.toFixed(2)}` : 'DO', index === 0 ? `₹${bill.totalAmount.toFixed(2)}` : 'DO', truckNumbers];
+    }); 
+    doc.autoTable({ startY: y + 5, head: [['LR NO', 'DATE', 'FROM', 'TO', 'WEIGHT', 'RATE', 'FREIGHT', 'TRUCK NO']], body: tableBody, theme: 'grid' }); 
+    let finalY = doc.autoTable.previous.finalY; 
+    doc.setFont("helvetica", "bold"); 
+    doc.text("TOTAL", 128, finalY + 7); 
+    doc.text(`₹${bill.totalAmount.toFixed(2)}`, 196, finalY + 7, { align: "right" }); 
+    doc.text(`Total Rupees ${numberToWords(bill.totalAmount)}`, 14, finalY + 15); 
+    finalY += 30; 
+    doc.setFont("helvetica", "bold"); 
+    doc.text("OUR BANK DETAILS:", 14, finalY); 
+    doc.setFont("helvetica", "normal"); 
+    doc.text(config.bank, 14, finalY + 5); 
+    doc.text(config.header, 14, finalY + 10); 
+    doc.text(`ACCOUNT NO. ${config.ac}`, 14, finalY + 15); 
+    doc.text(`IFSC CODE: ${config.ifsc}`, 14, finalY + 20); 
+    doc.text('T NAGAR, RAJAHMUNDRY', 14, finalY + 25); 
+    doc.setFont("helvetica", "bold"); 
+    doc.text(`For ${config.header}`, 196, finalY + 30, { align: "right" }); 
+    doc.text("Proprietor", 196, finalY + 45, { align: "right" }); 
+    doc.save(`Bill-${bill.billNumber}.pdf`); 
+};
+
+const generateDueStatementPDF = (party, bills, lrs, showAlert) => { 
+    const doc = new jsPDF();
+    const config = companyConfigs[party.companyName] || { header: party.companyName };
+    doc.setFontSize(18); 
+    doc.setFont('helvetica', 'bold'); 
+    doc.text(config.header, 105, 15, { align: 'center' });
+    doc.setFontSize(14);
+    doc.text('STATEMENT OF ACCOUNT', 105, 22, { align: 'center' });
+    doc.setFontSize(10); 
+    doc.setFont('helvetica', 'normal'); 
+    doc.text(`Date: ${new Date().toLocaleDateString('en-GB')}`, 196, 30, { align: 'right' }); 
+    let y = 40; 
+    doc.setFontSize(12); 
+    doc.text('To:', 14, y); 
+    y += 6; 
+    doc.setFont('helvetica', 'bold'); 
+    doc.text(party.name, 14, y); 
+    y += 6; 
+    doc.setFont('helvetica', 'normal'); 
+    doc.text(party.address || "N/A", 14, y); 
+    const tableBody = bills.map(bill => { 
+        const firstLr = lrs.find(lr => lr.id === bill.lrIds[0]);
+        const truckNumbers = bill.lrIds
+            .flatMap(lrId => {
+                const lr = lrs.find(l => l.id === lrId);
+                return lr?.truckDetails?.truckNumbers || (lr?.truckDetails?.truckNumber ? [lr.truckDetails.truckNumber] : []);
+            })
+            .filter(Boolean)
+            .join(', ');
+        return [ 
+            new Date(bill.billDate).toLocaleDateString('en-GB'), 
+            bill.billNumber, 
+            firstLr?.loadingDetails.unloadingPoint || '',
+            truckNumbers || 'N/A',
+            `₹${bill.totalAmount.toFixed(2)}` 
+        ];
+    }); 
+    doc.autoTable({ 
+        startY: y + 10, 
+        head: [['BILL DATE', 'BILL NO.', 'DESTINATION', 'TRUCK NO(S)', 'AMOUNT']], 
+        body: tableBody, 
+        theme: 'grid' 
+    }); 
+    let finalY = doc.autoTable.previous.finalY; 
+    const totalDue = bills.reduce((sum, bill) => sum + bill.totalAmount, 0); 
+    doc.setFontSize(12); 
+    doc.setFont('helvetica', 'bold'); 
+    doc.text('Total Due:', 140, finalY + 10, { align: 'right' }); 
+    doc.text(`₹${totalDue.toFixed(2)}`, 196, finalY + 10, { align: 'right' }); 
+    doc.save(`Due-Statement-${party.name}-${party.companyName}.pdf`); 
+};
+
+
+// --- UI Components ---
+const AlertModal = ({ title, message, onClose }) => ( <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4"> <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm"> <div className="flex items-start gap-4"> <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10"> <InfoIcon className="h-6 w-6 text-blue-600" /> </div> <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left"> <h3 className="text-lg leading-6 font-medium text-gray-900">{title}</h3> <div className="mt-2"> <p className="text-sm text-gray-500">{message}</p> </div> </div> </div> <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse"> <button onClick={onClose} className="btn-primary w-full sm:w-auto">OK</button> </div> </div> <style>{`.btn-primary{background:#4F46E5; color:white; padding:8px 16px; border-radius:8px; font-weight:500;} .btn-primary:hover{background:#4338CA;}`}</style> </div> );
+const ConfirmModal = ({ message, onConfirm, onCancel }) => ( <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4"> <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm"> <div className="flex items-start gap-4"> <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10"><AlertTriangleIcon className="h-6 w-6 text-red-600" /></div> <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left"> <h3 className="text-lg leading-6 font-medium text-gray-900">Confirm Action</h3> <div className="mt-2"><p className="text-sm text-gray-500">{message}</p></div> </div> </div> <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse gap-3"> <button onClick={onConfirm} className="btn-danger w-full sm:w-auto">Delete</button> <button onClick={onCancel} className="btn-secondary w-full sm:w-auto mt-2 sm:mt-0">Cancel</button> </div> </div> <style>{`.btn-danger { background-color: #DC2626; color: white; padding: 8px 16px; border-radius: 8px; font-weight: 500; } .btn-danger:hover { background-color: #B91C1C; } .btn-secondary { background-color: #E5E7EB; color: #374151; padding: 8px 16px; border-radius: 8px; font-weight: 500; } .btn-secondary:hover { background-color: #D1D5DB; }`}</style> </div> );
+const NavButton = ({ icon, label, active, onClick }) => (<button onClick={onClick} className={`flex items-center gap-2 px-3 py-2 rounded-md font-semibold text-sm transition-colors ${active ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}`}>{React.cloneElement(icon, { className: 'h-5 w-5' })} {label}</button>);
+const Section = ({ title, children, gridCols = 'md:grid-cols-3' }) => <div className="py-4"><h3 className="font-bold text-lg mb-4 text-slate-700 border-b pb-2">{title}</h3><div className={`grid grid-cols-1 gap-4 ${gridCols}`}>{children}</div></div>;
+const Input = ({ label, as = 'input', children, ...props }) => <div className="flex flex-col"><label className="text-sm font-medium mb-1 text-slate-600">{label}</label>{React.createElement(as, { ...props, className:"p-2 border rounded-md bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" }, children)}</div>;
+const PartySelector = ({ parties, onSelect, onAddNew, selectedPartyName }) => <select value={parties.find(p=>p.name === selectedPartyName)?.id || ''} onChange={(e) => e.target.value === 'add_new' ? onAddNew() : onSelect(parties.find(p => p.id === e.target.value))} className="p-2 border rounded-md w-full bg-white"><option value="">Select Party</option>{parties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}<option value="add_new" className="font-bold text-indigo-600">... Add New Party ...</option></select>;
+const InfoBox = ({ data }) => <div className="mt-2 text-sm bg-slate-50 p-3 rounded-md min-h-[6rem] border"><p className="font-semibold text-slate-700">Address:</p><p className="text-slate-600">{data?.address || 'N/A'}</p><p className="font-semibold text-slate-700 mt-1">GSTIN:</p><p className="text-slate-600">{data?.gstin || 'N/A'}</p></div>;
+
+function NewPartyModal({ onSave, onCancel, showAlert }) { 
+    const [newParty, setNewParty] = React.useState({ name: '', address: '', gstin: '' }); 
+    const handleSaveClick = () => { 
+        if (!newParty.name) { showAlert("Validation Error", "Party name is required."); return; } 
+        onSave(newParty); 
+    }; 
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
+            <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+                <h3 className="text-lg font-bold mb-4">Add New Party</h3>
+                <div className="space-y-4">
+                    <Input label="Party Name (Required)" value={newParty.name} onChange={e => setNewParty({...newParty, name: e.target.value})} />
+                    <Input label="Address" value={newParty.address} onChange={e => setNewParty({...newParty, address: e.target.value})} />
+                    <Input label="GSTIN" value={newParty.gstin} onChange={e => setNewParty({...newParty, gstin: e.target.value})} />
+                </div>
+                <div className="flex justify-end gap-2 mt-6">
+                    <button onClick={onCancel} className="btn-secondary">Cancel</button>
+                    <button onClick={handleSaveClick} className="btn-primary">Save Party</button>
+                </div>
+            </div>
+            <style>{`.btn-primary{background:#4F46E5; color:white; padding:8px 16px; border-radius:8px;} .btn-secondary{background:#E5E7EB; color:#374151; padding:8px 16px; border-radius:8px;}`}</style>
+        </div>
+    ); 
+}
+
+// --- View Components ---
+function LrView({ lrs, bills, handleEditLr, handleDelete, setView, handleDeleteRequest }) { 
+    const [activeCompany, setActiveCompany] = React.useState('ALL'); 
+    const companies = ['ALL', 'SAI KUMAR TRANSPORT', 'SRI KUMAR TRANSPORT', 'GLOBAL LOGISTICS']; 
+    const billedLrIds = new Set(bills.flatMap(b => b.lrIds)); 
+    const filteredLrs = lrs.filter(lr => activeCompany === 'ALL' || lr.companyName === activeCompany); 
+    return (
+        <div>
+            <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-2">
+                <h2 className="text-2xl font-bold text-slate-800">Lorry Receipts</h2>
+                <button onClick={() => setView('add_lr')} className="btn-primary flex items-center gap-2 w-full sm:w-auto"><PlusCircleIcon className="h-5 w-5"/>Add New LR</button>
+            </div>
+            <div className="border-b border-slate-200 mb-4 flex-wrap flex">
+                {companies.map(c => <button key={c} onClick={() => setActiveCompany(c)} className={`py-2 px-4 text-sm font-medium ${activeCompany === c ? 'border-b-2 border-indigo-500 text-indigo-600' : 'text-slate-500 hover:text-slate-800'}`}>{c}</button>)}
+            </div>
+            <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                    <thead><tr><th className="th">LR No.</th><th className="th">Date</th><th className="th">Company</th><th className="th">Consignee</th><th className="th">Status</th><th className="th">Actions</th></tr></thead>
+                    <tbody className="divide-y divide-slate-100">
+                        {filteredLrs.map(lr => (
+                            <tr key={lr.id}>
+                                <td className="td">{lr.lrNumber}</td>
+                                <td className="td">{lr.bookingDate}</td>
+                                <td className="td">{lr.companyName}</td>
+                                <td className="td">{lr.consignee?.name}</td>
+                                <td className="td"><span className={`px-2 py-1 text-xs font-semibold rounded-full ${billedLrIds.has(lr.id) ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-800'}`}>{billedLrIds.has(lr.id) ? 'Billed' : 'Unbilled'}</span></td>
+                                <td className="td flex gap-4">
+                                    <button onClick={() => handleEditLr(lr)} className="text-indigo-600 font-semibold">Edit</button>
+                                    <button onClick={() => handleDeleteRequest(`Are you sure you want to delete LR #${lr.lrNumber}?`, () => handleDelete(lr.id, 'lrs'))} className="text-red-600 font-semibold">Delete</button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+            <style>{`.th{text-align:left; padding:12px 8px; font-weight:600; color: #4B5563; background-color:#F9FAFB;} .td{padding:12px 8px; white-space:nowrap;} .btn-primary{background:#4F46E5; color:white; padding:8px 16px; border-radius:8px; justify-content:center;}`}</style>
+        </div>
+    ); 
+}
+
+function LrForm({ db, userId, setView, parties, existingLr, showAlert }) { 
+    const getInitialData = React.useCallback(() => ({ 
+        companyName: 'SAI KUMAR TRANSPORT', 
+        lrNumber: '', 
+        bookingDate: new Date().toISOString().split('T')[0], 
+        truckDetails: { truckNumbers: [''] }, 
+        loadingDetails: { loadingPoint: '', unloadingPoint: '', articles: '', weight: '' }, 
+        consignor: { name: '', address: '', gstin: '' }, 
+        consignee: { name: '', address: '', gstin: '' }, 
+        billDetails: { amount: '' }, 
+        isBilled: false 
+    }), []); 
+    
+    const [formData, setFormData] = React.useState(existingLr || getInitialData()); 
+    const [isAddingParty, setIsAddingParty] = React.useState(false); 
+    const [partyTypeToAdd, setPartyTypeToAdd] = React.useState(null); 
+    
+    React.useEffect(() => { 
+        if (existingLr) {
+            // Ensure truckNumbers is an array for older data
+            const truckDetails = existingLr.truckDetails || {};
+            const truckNumbers = Array.isArray(truckDetails.truckNumbers) ? truckDetails.truckNumbers : (truckDetails.truckNumber ? [truckDetails.truckNumber] : ['']);
+            setFormData({ ...existingLr, truckDetails: { ...truckDetails, truckNumbers } });
+        } else {
+            setFormData(getInitialData());
+        }
+    }, [existingLr, getInitialData]); 
+    
+    const handlePartySelect = (party, type) => { if (party) setFormData(prev => ({ ...prev, [type]: { name: party.name, address: party.address, gstin: party.gstin } }));}; 
+    const handleOpenNewPartyModal = (type) => { setPartyTypeToAdd(type); setIsAddingParty(true); }; 
+    const handleSaveNewParty = async (newPartyData) => { 
+        try { 
+            await db.collection('users').doc(userId).collection('parties').add(newPartyData);
+            setIsAddingParty(false); 
+            setPartyTypeToAdd(null); 
+        } catch (error) { console.error("Error saving new party:", error); showAlert("Save Failed", "Could not save the new party."); } 
+    }; 
+    const handleChange = (e, section, field) => setFormData(prev => ({ ...prev, [section]: { ...prev[section], [field]: e.target.value } })); 
+    const handleRootChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value })); 
+
+    const handleTruckNumberChange = (e, index) => {
+        const newTruckNumbers = [...formData.truckDetails.truckNumbers];
+        newTruckNumbers[index] = e.target.value;
+        setFormData(prev => ({ ...prev, truckDetails: { ...prev.truckDetails, truckNumbers: newTruckNumbers }}));
+    };
+
+    const addTruckNumberField = () => {
+        setFormData(prev => ({ ...prev, truckDetails: { ...prev.truckDetails, truckNumbers: [...prev.truckDetails.truckNumbers, ''] }}));
+    };
+
+    const removeTruckNumberField = (index) => {
+        const newTruckNumbers = formData.truckDetails.truckNumbers.filter((_, i) => i !== index);
+        setFormData(prev => ({ ...prev, truckDetails: { ...prev.truckDetails, truckNumbers: newTruckNumbers }}));
+    };
+
+    const handleSubmit = async (e) => { 
+        e.preventDefault(); 
+        if (!formData.lrNumber || !formData.billDetails?.amount) { showAlert("Validation Error", "LR Number and Freight Amount are required."); return; } 
+        
+        // Filter out empty truck numbers before saving
+        const finalFormData = {
+            ...formData,
+            truckDetails: {
+                ...formData.truckDetails,
+                truckNumbers: formData.truckDetails.truckNumbers.filter(num => num.trim() !== '')
+            }
+        };
+
+        const lrsCollection = db.collection('users').doc(userId).collection('lrs');
+        try { 
+            if (existingLr && existingLr.id) { 
+                const { id, ...dataToSave } = finalFormData; 
+                await lrsCollection.doc(id).set(dataToSave); 
+            } else { 
+                await lrsCollection.add(finalFormData); 
+            } 
+            setView('lrs'); 
+        } catch (error) { console.error("Error saving LR:", error); showAlert("Save Failed", "Could not save the LR data."); } 
+    }; 
+
+    return (
+        <form onSubmit={handleSubmit} className="space-y-6">
+            {isAddingParty && <NewPartyModal onSave={handleSaveNewParty} onCancel={() => setIsAddingParty(false)} showAlert={showAlert} />}
+            <h2 className="text-2xl font-bold">{existingLr ? `Edit LR #${existingLr.lrNumber}` : 'Create Lorry Receipt'}</h2>
+            <Section title="Core Details">
+                <Input label="Company" name="companyName" value={formData.companyName} onChange={handleRootChange} as="select">
+                    <option>SAI KUMAR TRANSPORT</option><option>SRI KUMAR TRANSPORT</option><option>GLOBAL LOGISTICS</option>
+                </Input>
+                <Input label="LR Number" name="lrNumber" value={formData.lrNumber} onChange={handleRootChange} required />
+                <Input label="Booking Date" name="bookingDate" type="date" value={formData.bookingDate} onChange={handleRootChange} required />
+            </Section>
+            <Section title="Party Details" gridCols="lg:grid-cols-2">
+                <div>
+                    <h3 className="font-semibold mb-2 text-slate-600">Consignor (Sender)</h3>
+                    <PartySelector parties={parties} selectedPartyName={formData.consignor?.name} onSelect={(p) => handlePartySelect(p, 'consignor')} onAddNew={() => handleOpenNewPartyModal('consignor')} />
+                    <InfoBox data={formData.consignor} />
+                </div>
+                <div>
+                    <h3 className="font-semibold mb-2 text-slate-600">Consignee (Receiver)</h3>
+                    <PartySelector parties={parties} selectedPartyName={formData.consignee?.name} onSelect={(p) => handlePartySelect(p, 'consignee')} onAddNew={() => handleOpenNewPartyModal('consignee')}/>
+                    <InfoBox data={formData.consignee} />
+                </div>
+            </Section>
+            <Section title="Shipment & Freight">
+                <Input label="Loading Point" value={formData.loadingDetails.loadingPoint || ''} onChange={(e) => handleChange(e, 'loadingDetails', 'loadingPoint')} />
+                <Input label="Unloading Point" value={formData.loadingDetails.unloadingPoint || ''} onChange={(e) => handleChange(e, 'loadingDetails', 'unloadingPoint')} />
+                <Input label="Articles" value={formData.loadingDetails.articles || ''} onChange={(e) => handleChange(e, 'loadingDetails', 'articles')} />
+                <Input label="Weight" value={formData.loadingDetails.weight || ''} onChange={(e) => handleChange(e, 'loadingDetails', 'weight')} />
+                <div className="md:col-span-3 space-y-2">
+                    <label className="text-sm font-medium mb-1 text-slate-600">Truck Numbers</label>
+                    {formData.truckDetails?.truckNumbers.map((truckNumber, index) => (
+                        <div key={index} className="flex items-center gap-2">
+                            <input
+                                type="text"
+                                value={truckNumber}
+                                onChange={(e) => handleTruckNumberChange(e, index)}
+                                className="p-2 border rounded-md bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 w-full"
+                                placeholder={`Truck Number ${index + 1}`}
+                            />
+                            {formData.truckDetails.truckNumbers.length > 1 && (
+                                <button type="button" onClick={() => removeTruckNumberField(index)} className="p-2 text-red-500 hover:text-red-700">
+                                    Remove
+                                </button>
+                            )}
+                        </div>
+                    ))}
+                    <button type="button" onClick={addTruckNumberField} className="text-indigo-600 font-semibold text-sm mt-2">
+                        + Add Another Truck
+                    </button>
+                </div>
+                <Input label="Freight Amount (₹)" type="number" step="0.01" value={formData.billDetails.amount || ''} onChange={(e) => handleChange(e, 'billDetails', 'amount')} required />
+            </Section>
+            <div className="flex justify-end gap-4 pt-4 border-t">
+                <button type="button" onClick={() => setView('lrs')} className="btn-secondary">Cancel</button>
+                <button type="submit" className="btn-primary">Save LR</button>
+            </div>
+            <style>{`.btn-primary{background:#4F46E5; color:white; padding:8px 16px; border-radius:8px;} .btn-secondary{background:#E5E7EB; color:#374151; padding:8px 16px; border-radius:8px;}`}</style>
+        </form>
+    ); 
+}
+
+function BillingView({ setView, bills, lrs, db, userId, handleDeleteRequest, pdfScriptsLoaded, showAlert }) { 
+    const handleDeleteBill = async (billId, lrIds) => { 
+        const batch = db.batch(); 
+        const billRef = db.collection('users').doc(userId).collection('bills').doc(billId); 
+        batch.delete(billRef); 
+        lrIds.forEach(lrId => { 
+            const lrRef = db.collection('users').doc(userId).collection('lrs').doc(lrId); 
+            batch.update(lrRef, { isBilled: false }); 
+        }); 
+        await batch.commit(); 
+    }; 
+    const handleDownload = (bill) => { 
+        const lrsInBill = bill.lrIds.map(id => lrs.find(lr => lr.id === id)).filter(Boolean); 
+        if (lrsInBill.length > 0) { 
+            generatePdfForBill(bill, lrsInBill, showAlert); 
+        } else { 
+            showAlert("Data Not Found", "Shipment data for this bill could not be found."); 
+        } 
+    }; 
+    const handleMarkAsPaid = async (billId) => {
+        try {
+            await db.collection('users').doc(userId).collection('bills').doc(billId).update({ status: 'Paid' });
+            showAlert("Success", "Bill has been marked as paid.");
+        } catch (error) {
+            console.error("Error marking bill as paid:", error);
+            showAlert("Error", "Could not update the bill status.");
+        }
+    };
+
+    return (
+        <div>
+            <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-bold">Billing</h2>
+                <button onClick={() => setView('create_bill')} className="btn-primary flex items-center gap-2"><PlusCircleIcon/>Create Bill</button>
+            </div>
+            <div className="space-y-3">
+                {bills.map(bill => (
+                    <div key={bill.id} className={`p-4 border rounded-lg transition-shadow hover:shadow-md ${bill.status === 'Paid' ? 'bg-green-50' : 'bg-slate-50'}`}>
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                            <div>
+                                <p className="font-bold text-slate-800">{bill.companyName} - Bill #{bill.billNumber}</p>
+                                <p className="text-sm text-slate-600">{bill.partyName}</p>
+                                <span className={`mt-1 inline-block px-2 py-1 text-xs font-semibold rounded-full ${bill.status === 'Paid' ? 'bg-green-200 text-green-800' : 'bg-yellow-200 text-yellow-800'}`}>
+                                    {bill.status || 'Due'}
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2 self-end sm:self-center">
+                                <span className="font-bold text-lg text-slate-700">₹{bill.totalAmount.toFixed(2)}</span>
+                                <button onClick={() => handleDownload(bill)} disabled={!pdfScriptsLoaded} className="btn-icon disabled:opacity-50 disabled:cursor-not-allowed"><DownloadIcon className="h-5 w-5"/></button>
+                                {bill.status !== 'Paid' && (
+                                    <button onClick={() => handleMarkAsPaid(bill.id)} title="Mark as Paid" className="p-2 rounded-md bg-green-500 text-white hover:bg-green-600 transition-colors">
+                                        <CheckCircleIcon className="h-5 w-5"/>
+                                    </button>
+                                )}
+                                <button onClick={() => handleDeleteRequest(`Delete Bill #${bill.billNumber}? Associated LRs will be marked as unbilled.`, () => handleDeleteBill(bill.id, bill.lrIds))} className="btn-icon-danger">Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+            <style>{`.btn-primary{background:#4F46E5; color:white; padding:8px 16px; border-radius:8px; font-weight:500;} .btn-icon{background:#E5E7EB; color:#374151; padding:8px; border-radius:8px;} .btn-icon-danger{background:#FEE2E2; color:#DC2626; padding:8px; border-radius:8px;}`}</style>
+        </div>
+    ); 
+}
+
+function CreateBillForm({ db, userId, setView, lrs, showAlert }) { 
+    const [billNumber, setBillNumber] = React.useState(''); 
+    const [billDate, setBillDate] = React.useState(new Date().toISOString().split('T')[0]); 
+    const [selectedLrs, setSelectedLrs] = React.useState([]); 
+    const [companyName, setCompanyName] = React.useState('GLOBAL LOGISTICS'); 
+    const [billTo, setBillTo] = React.useState('Consignee'); 
+    const [partyName, setPartyName] = React.useState(''); 
+    const unbilledLrs = lrs.filter(lr => !lr.isBilled && lr.companyName === companyName); 
+    const handleLrSelection = (lrId) => { 
+        const lr = unbilledLrs.find(l => l.id === lrId); 
+        if (!lr) return; 
+        const currentParty = billTo === 'Consignor' ? lr.consignor.name : lr.consignee.name; 
+        if (selectedLrs.length === 0) { 
+            setPartyName(currentParty); 
+            setSelectedLrs([lrId]); 
+        } else if (partyName === currentParty) { 
+            setSelectedLrs(prev => prev.includes(lrId) ? prev.filter(id => id !== lrId) : [...prev, lrId]); 
+        } else { 
+            showAlert("Party Mismatch", `Please select LRs for the same party (${partyName}).`); 
+        } 
+    }; 
+    const handleSubmit = async (e) => { 
+        e.preventDefault(); 
+        if (!billNumber || selectedLrs.length === 0) { 
+            showAlert("Validation Error", "Please provide a bill number and select at least one LR."); 
+            return; 
+        } 
+        const totalAmount = selectedLrs.reduce((sum, lrId) => sum + (parseFloat(lrs.find(l => l.id === lrId)?.billDetails?.amount) || 0), 0); 
+        const newBill = { billNumber, billDate, companyName, billTo, partyName, lrIds: selectedLrs, totalAmount, status: 'Due' }; 
+        const batch = db.batch(); 
+        const newBillRef = db.collection('users').doc(userId).collection('bills').doc(); 
+        batch.set(newBillRef, newBill); 
+        selectedLrs.forEach(lrId => { 
+            const lrRef = db.collection('users').doc(userId).collection('lrs').doc(lrId); 
+            batch.update(lrRef, { isBilled: true }); 
+        }); 
+        await batch.commit(); 
+        setView('billing'); 
+    }; 
+    return (
+        <form onSubmit={handleSubmit} className="space-y-6">
+            <h2 className="text-2xl font-bold">Create New Bill</h2>
+            <Section title="Bill Details">
+                <Input label="Bill Number" value={billNumber} onChange={e => setBillNumber(e.target.value)} required />
+                <Input label="Bill Date" type="date" value={billDate} onChange={e => setBillDate(e.target.value)} />
+                <Input label="Company" value={companyName} as="select" onChange={e => {setCompanyName(e.target.value); setSelectedLrs([]); setPartyName('');}}>
+                    <option>GLOBAL LOGISTICS</option><option>SRI KUMAR TRANSPORT</option><option>SAI KUMAR TRANSPORT</option>
+                </Input>
+                <Input label="Bill To" value={billTo} as="select" onChange={e => {setBillTo(e.target.value); setSelectedLrs([]); setPartyName('');}}>
+                    <option value="Consignee">Consignee</option><option value="Consignor">Consignor</option>
+                </Input>
+            </Section>
+            <Section title={`Select Unbilled LRs for ${companyName}`}>
+                {partyName && <p className="font-semibold text-indigo-600 mb-2">Billing To Party: {partyName}</p>}
+                <div className="max-h-60 overflow-y-auto space-y-2 p-2 bg-slate-50 border rounded-md">
+                    {unbilledLrs.length > 0 ? unbilledLrs.map(lr => 
+                        <div key={lr.id} onClick={() => handleLrSelection(lr.id)} className={`p-3 border rounded-md cursor-pointer transition-colors ${selectedLrs.includes(lr.id) ? 'bg-indigo-100 border-indigo-300' : 'bg-white hover:bg-indigo-50'}`}>
+                            <p className="font-semibold">LR #{lr.lrNumber} - <span className="font-normal">{billTo === 'Consignor' ? lr.consignor.name : lr.consignee.name}</span> - <span className="font-bold">₹{lr.billDetails.amount}</span></p>
+                        </div>
+                    ) : <p className="text-slate-500 text-center p-4">No unbilled LRs for this company.</p>}
+                </div>
+            </Section>
+            <div className="flex justify-end gap-4">
+                <button type="button" onClick={() => setView('billing')} className="btn-secondary">Cancel</button>
+                <button type="submit" className="btn-primary">Create Bill</button>
+            </div>
+            <style>{`.btn-primary{background:#4F46E5; color:white; padding:8px 16px; border-radius:8px;} .btn-secondary{background:#E5E7EB; color:#374151; padding:8px 16px; border-radius:8px;}`}</style>
+        </form>
+    ); 
+}
+
+function PartiesView({ parties, db, userId, handleDelete, handleDeleteRequest, showAlert }) { 
+    const [isAdding, setIsAdding] = React.useState(false); 
+    const [newParty, setNewParty] = React.useState({ name: '', address: '', gstin: '' }); 
+    const handleSave = async () => { 
+        if (!newParty.name) { showAlert("Validation Error", "Party name is required."); return; } 
+        await db.collection('users').doc(userId).collection('parties').add(newParty); 
+        setNewParty({ name: '', address: '', gstin: '' }); 
+        setIsAdding(false); 
+    }; 
+    return (
+        <div>
+            <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-bold">Manage Parties</h2>
+                {!isAdding && <button onClick={() => setIsAdding(true)} className="btn-primary flex items-center gap-2"><PlusCircleIcon/>Add Party</button>}
+            </div>
+            {isAdding && (
+                <div className="p-4 bg-slate-50 border rounded-lg mb-4 space-y-4">
+                    <h3 className="font-semibold">New Party Details</h3>
+                    <div className="grid md:grid-cols-3 gap-4">
+                        <Input placeholder="Party Name" value={newParty.name} onChange={e => setNewParty({...newParty, name: e.target.value})}/>
+                        <Input placeholder="Address" value={newParty.address} onChange={e => setNewParty({...newParty, address: e.target.value})}/>
+                        <Input placeholder="GSTIN" value={newParty.gstin} onChange={e => setNewParty({...newParty, gstin: e.target.value})}/>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                        <button onClick={() => setIsAdding(false)} className="btn-secondary">Cancel</button>
+                        <button onClick={handleSave} className="bg-green-500 text-white px-4 py-2 rounded-lg">Save</button>
+                    </div>
+                </div>
+            )}
+            <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                    <thead><tr><th className="th">Name</th><th className="th">Address</th><th className="th">GSTIN</th><th className="th">Actions</th></tr></thead>
+                    <tbody className="divide-y divide-slate-100">
+                        {parties.map(p => (
+                            <tr key={p.id}>
+                                <td className="td">{p.name}</td>
+                                <td className="td">{p.address}</td>
+                                <td className="td">{p.gstin}</td>
+                                <td className="td"><button onClick={() => handleDeleteRequest(`Are you sure you want to delete party '${p.name}'?`, () => handleDelete(p.id, 'parties'))} className="text-red-600 font-semibold">Delete</button></td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+            <style>{`.th{text-align:left; padding:12px 8px; font-weight:600; color:#4B5563; background-color:#F9FAFB;} .td{padding:12px 8px;} .btn-primary{background:#4F46E5; color:white; padding:8px 16px; border-radius:8px;} .btn-secondary{background:#E5E7EB; color:#374151; padding:8px 16px; border-radius:8px;}`}</style>
+        </div>
+    ); 
+}
+        
+function StatementView({ bills, lrs, parties, pdfScriptsLoaded, showAlert }) {
+    const dueBillsByPartyAndCompany = bills.filter(b => b.status === 'Due').reduce((acc, bill) => {
+        const party = parties.find(p => p.name === bill.partyName);
+        if (party) {
+            const key = `${party.id}-${bill.companyName}`;
+            if (!acc[key]) {
+                acc[key] = {
+                    partyId: party.id,
+                    partyName: party.name,
+                    partyAddress: party.address,
+                    companyName: bill.companyName,
+                    bills: []
+                };
+            }
+            acc[key].bills.push(bill);
+        }
+        return acc;
+    }, {});
+
+    const handleDownload = (statementGroup) => {
+        const partyInfo = {
+            name: statementGroup.partyName,
+            address: statementGroup.partyAddress,
+            companyName: statementGroup.companyName
+        };
+        generateDueStatementPDF(partyInfo, statementGroup.bills, lrs, showAlert);
+    };
+
+    return (
+        <div>
+            <h2 className="text-2xl font-bold mb-4">Due Statements</h2>
+            <div className="space-y-4">
+                {Object.keys(dueBillsByPartyAndCompany).length > 0 ? Object.values(dueBillsByPartyAndCompany).map(statementGroup => (
+                    <div key={`${statementGroup.partyId}-${statementGroup.companyName}`} className="p-4 border rounded-lg bg-slate-50 transition-shadow hover:shadow-md">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                            <div>
+                                <p className="font-bold text-slate-800">{statementGroup.partyName}</p>
+                                <p className="text-sm text-indigo-600 font-semibold">{statementGroup.companyName}</p>
+                                <p className="text-sm text-slate-600 mt-1">
+                                    Total Due: ₹{statementGroup.bills.reduce((sum, b) => sum + b.totalAmount, 0).toFixed(2)}
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => handleDownload(statementGroup)}
+                                disabled={!pdfScriptsLoaded}
+                                className="btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed self-end sm:self-center">
+                                <DownloadIcon className="h-5 w-5"/>
+                                Download Statement
+                            </button>
+                        </div>
+                    </div>
+                )) : <p className="text-slate-500 text-center p-4">No due statements to show.</p>}
+            </div>
+            <style>{`.btn-primary{background:#4F46E5; color:white; padding:8px 16px; border-radius:8px; font-weight:500}`}</style>
+        </div>
+    );
+}
+
+// --- Main App Component ---
+function App() {
+    const [view, setView] = React.useState('lrs');
+    const [lrs, setLrs] = React.useState([]);
+    const [bills, setBills] = React.useState([]);
+    const [parties, setParties] = React.useState([]);
+    const [editingLr, setEditingLr] = React.useState(null);
+    const [loading, setLoading] = React.useState(true);
+    const [userId, setUserId] = React.useState(null);
+    const [confirmation, setConfirmation] = React.useState(null);
+    const [alertInfo, setAlertInfo] = React.useState(null);
+
+    const showAlert = React.useCallback((title, message) => {
+        setAlertInfo({ title, message });
+    }, []);
+
+    React.useEffect(() => {
+        const unsubscribe = auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                setUserId(user.uid);
+            } else {
+                try {
+                    await auth.signInAnonymously();
+                } catch (error) { 
+                    console.error("Firebase Anonymous Auth Error:", error); 
+                    showAlert("Authentication Error", "Could not sign in anonymously.");
+                }
+            }
+            setLoading(false);
+        });
+        return () => unsubscribe();
+    }, [showAlert]);
+
+    React.useEffect(() => {
+        if (!userId) return;
+
+        const collections = {
+            lrs: (data) => setLrs(data.sort((a, b) => String(a.lrNumber).localeCompare(String(b.lrNumber), undefined, { numeric: true }))),
+            bills: (data) => setBills(data.sort((a,b) => new Date(b.billDate) - new Date(a.billDate))),
+            parties: setParties
+        };
+
+        const unsubscribers = Object.entries(collections).map(([path, setter]) => {
+            const query = db.collection('users').doc(userId).collection(path);
+            return query.onSnapshot((snapshot) => {
+                const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                setter(data);
+            }, (error) => {
+                console.error(`Firestore listener error on ${path}:`, error);
+                showAlert("Database Error", `Failed to load data for ${path}. Please refresh the page.`);
+            });
+        });
+
+        return () => unsubscribers.forEach(unsub => unsub());
+    }, [userId, showAlert]);
+    
+    const handleDeleteRequest = React.useCallback((message, onConfirmAction) => {
+        setConfirmation({ message, onConfirm: onConfirmAction });
+    }, []);
+
+    const handleConfirmDelete = () => {
+        if (confirmation && typeof confirmation.onConfirm === 'function') {
+            confirmation.onConfirm();
+        }
+        setConfirmation(null);
+    };
+
+    const handleCancelDelete = () => setConfirmation(null);
+    
+    const handleDelete = React.useCallback(async (id, collectionName) => {
+        if (!userId) return;
+        try {
+            await db.collection('users').doc(userId).collection(collectionName).doc(id).delete();
+        } catch (error) {
+            console.error(`Delete Error in ${collectionName}:`, error);
+            showAlert("Deletion Failed", `Could not delete the item from ${collectionName}.`);
+        }
+    }, [userId, showAlert]);
+
+    const handleSetView = (newView) => { setEditingLr(null); setView(newView); };
+    const handleEditLr = (lr) => { setEditingLr(lr); setView('add_lr'); };
+
+    const renderView = () => {
+        if (loading) return <div className="text-center p-10 font-semibold text-slate-500">Connecting to your data...</div>;
+        const props = { db, userId, setView, lrs, bills, parties, handleDeleteRequest, handleDelete, showAlert };
+        switch (view) {
+            case 'add_lr': return <LrForm {...props} existingLr={editingLr} />;
+            case 'billing': return <BillingView {...props} pdfScriptsLoaded={true} />;
+            case 'create_bill': return <CreateBillForm {...props} />;
+            case 'parties': return <PartiesView {...props} />;
+            case 'statements': return <StatementView {...props} pdfScriptsLoaded={true}/>;
+            case 'lrs': default: return <LrView {...props} handleEditLr={handleEditLr} />;
+        }
+    };
+
+    return (
+        <div className="bg-slate-50 min-h-screen font-sans">
+            {confirmation && <ConfirmModal message={confirmation.message} onConfirm={handleConfirmDelete} onCancel={handleCancelDelete} />}
+            {alertInfo && <AlertModal title={alertInfo.title} message={alertInfo.message} onClose={() => setAlertInfo(null)} />}
+            <div className="container mx-auto p-2 sm:p-4">
+                <header className="bg-white rounded-lg shadow p-4 mb-6 flex justify-between items-center">
+                    <div className="flex items-center gap-3"><TruckIcon className="h-8 w-8 text-indigo-600" /><h1 className="text-xl sm:text-2xl font-bold text-slate-800">Transport Dashboard</h1></div>
+                </header>
+                <nav className="bg-white rounded-lg shadow p-2 flex flex-wrap gap-2 mb-6">
+                    <NavButton icon={<FileTextIcon />} label="LRs" active={view === 'lrs' || view === 'add_lr'} onClick={() => handleSetView('lrs')} />
+                    <NavButton icon={<DollarSignIcon />} label="Billing" active={view === 'billing' || view === 'create_bill'} onClick={() => handleSetView('billing')} />
+                    <NavButton icon={<UsersIcon />} label="Parties" active={view === 'parties'} onClick={() => handleSetView('parties')} />
+                    <NavButton icon={<BriefcaseIcon />} label="Statements" active={view === 'statements'} onClick={() => handleSetView('statements')} />
+                </nav>
+                <main className="bg-white rounded-lg shadow p-4 sm:p-6">{renderView()}</main>
+            </div>
+        </div>
+    );
+}
+
+export default App;
