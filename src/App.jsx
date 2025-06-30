@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import jsPDF from "jspdf";
-import autoTable from 'jspdf-autotable'; // FIXED: Changed import for more reliable usage
+import autoTable from 'jspdf-autotable';
 import { db, auth } from './firebaseConfig.js';
 
 // --- Icon Components ---
@@ -630,7 +630,8 @@ function LoginScreen({ showAlert }) {
 
 // --- Main App Component ---
 function App() {
-    const [view, setView] = useState('lrs');
+    // FIXED: Initialize view state from localStorage, defaulting to 'lrs'
+    const [view, setView] = useState(() => localStorage.getItem('currentView') || 'lrs');
     const [lrs, setLrs] = useState([]);
     const [bills, setBills] = useState([]);
     const [parties, setParties] = useState([]);
@@ -645,6 +646,11 @@ function App() {
     const showAlert = useCallback((title, message) => {
         setAlertInfo({ title, message });
     }, []);
+
+    // FIXED: Save the current view to localStorage whenever it changes
+    useEffect(() => {
+        localStorage.setItem('currentView', view);
+    }, [view]);
 
     useEffect(() => {
         const unsubscribe = auth.onAuthStateChanged((user) => {
