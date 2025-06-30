@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import jsPDF from "jspdf";
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable'; // FIXED: Changed import for more reliable usage
 import { db, auth } from './firebaseConfig.js';
 
 // --- Icon Components ---
@@ -60,8 +60,8 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
         const truckNumbers = (lr.truckDetails.truckNumbers || [lr.truckDetails.truckNumber]).filter(Boolean).join(', ');
         return [lr.lrNumber, new Date(lr.bookingDate).toLocaleDateString("en-GB"), lr.loadingDetails.loadingPoint, lr.loadingDetails.unloadingPoint, lr.loadingDetails.weight, index === 0 ? `₹${bill.totalAmount.toFixed(2)}` : 'DO', index === 0 ? `₹${bill.totalAmount.toFixed(2)}` : 'DO', truckNumbers];
     }); 
-    doc.autoTable({ startY: y + 5, head: [['LR NO', 'DATE', 'FROM', 'TO', 'WEIGHT', 'RATE', 'FREIGHT', 'TRUCK NO']], body: tableBody, theme: 'grid' }); 
-    let finalY = doc.autoTable.previous.finalY; 
+    autoTable(doc, { startY: y + 5, head: [['LR NO', 'DATE', 'FROM', 'TO', 'WEIGHT', 'RATE', 'FREIGHT', 'TRUCK NO']], body: tableBody, theme: 'grid' }); 
+    let finalY = doc.lastAutoTable.finalY; 
     doc.setFont("helvetica", "bold"); 
     doc.text("TOTAL", 128, finalY + 7); 
     doc.text(`₹${bill.totalAmount.toFixed(2)}`, 196, finalY + 7, { align: "right" }); 
@@ -118,13 +118,13 @@ const generateDueStatementPDF = (party, bills, lrs, showAlert) => {
             `₹${bill.totalAmount.toFixed(2)}` 
         ];
     }); 
-    doc.autoTable({ 
+    autoTable(doc, { 
         startY: y + 10, 
         head: [['BILL DATE', 'BILL NO.', 'DESTINATION', 'TRUCK NO(S)', 'AMOUNT']], 
         body: tableBody, 
         theme: 'grid' 
     }); 
-    let finalY = doc.autoTable.previous.finalY; 
+    let finalY = doc.lastAutoTable.finalY; 
     const totalDue = bills.reduce((sum, bill) => sum + bill.totalAmount, 0); 
     doc.setFontSize(12); 
     doc.setFont('helvetica', 'bold'); 
