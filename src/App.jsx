@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { jsPDF } from "jspdf";
 import 'jspdf-autotable';
 import { db, auth } from './firebaseConfig.js';
@@ -14,6 +14,7 @@ const BriefcaseIcon = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="
 const AlertTriangleIcon = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>;
 const InfoIcon = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>;
 const CheckCircleIcon = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>;
+const LogOutIcon = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>;
 
 // --- Global Configs & Helpers ---
 const getFinancialYear = () => { const today = new Date(); const currentMonth = today.getMonth(); const currentYear = today.getFullYear(); if (currentMonth >= 3) { return `${currentYear}-${(currentYear + 1).toString().slice(-2)}`; } else { return `${currentYear - 1}-${currentYear.toString().slice(-2)}`; } };
@@ -226,9 +227,8 @@ function LrForm({ db, userId, setView, parties, existingLr, showAlert }) {
     
     React.useEffect(() => { 
         if (existingLr) {
-            // Ensure truckNumbers is an array for older data
             const truckDetails = existingLr.truckDetails || {};
-            const truckNumbers = Array.isArray(truckDetails.truckNumbers) ? truckDetails.truckNumbers : (truckDetails.truckNumber ? [truckDetails.truckNumber] : ['']);
+            const truckNumbers = Array.isArray(truckDetails.truckNumbers) && truckDetails.truckNumbers.length > 0 ? truckDetails.truckNumbers : (truckDetails.truckNumber ? [truckDetails.truckNumber] : ['']);
             setFormData({ ...existingLr, truckDetails: { ...truckDetails, truckNumbers } });
         } else {
             setFormData(getInitialData());
@@ -238,10 +238,15 @@ function LrForm({ db, userId, setView, parties, existingLr, showAlert }) {
     const handlePartySelect = (party, type) => { if (party) setFormData(prev => ({ ...prev, [type]: { name: party.name, address: party.address, gstin: party.gstin } }));}; 
     const handleOpenNewPartyModal = (type) => { setPartyTypeToAdd(type); setIsAddingParty(true); }; 
     const handleSaveNewParty = async (newPartyData) => { 
+        if (!userId) {
+            showAlert("Error", "You must be logged in to add a new party.");
+            return;
+        }
         try { 
             await db.collection('users').doc(userId).collection('parties').add(newPartyData);
             setIsAddingParty(false); 
             setPartyTypeToAdd(null); 
+            showAlert("Success", "New party added successfully.");
         } catch (error) { console.error("Error saving new party:", error); showAlert("Save Failed", "Could not save the new party."); } 
     }; 
     const handleChange = (e, section, field) => setFormData(prev => ({ ...prev, [section]: { ...prev[section], [field]: e.target.value } })); 
@@ -266,12 +271,11 @@ function LrForm({ db, userId, setView, parties, existingLr, showAlert }) {
         e.preventDefault(); 
         if (!formData.lrNumber || !formData.billDetails?.amount) { showAlert("Validation Error", "LR Number and Freight Amount are required."); return; } 
         
-        // Filter out empty truck numbers before saving
         const finalFormData = {
             ...formData,
             truckDetails: {
                 ...formData.truckDetails,
-                truckNumbers: formData.truckDetails.truckNumbers.filter(num => num.trim() !== '')
+                truckNumbers: formData.truckDetails.truckNumbers.filter(num => num && num.trim() !== '')
             }
         };
 
@@ -317,7 +321,7 @@ function LrForm({ db, userId, setView, parties, existingLr, showAlert }) {
                 <Input label="Weight" value={formData.loadingDetails.weight || ''} onChange={(e) => handleChange(e, 'loadingDetails', 'weight')} />
                 <div className="md:col-span-3 space-y-2">
                     <label className="text-sm font-medium mb-1 text-slate-600">Truck Numbers</label>
-                    {formData.truckDetails?.truckNumbers.map((truckNumber, index) => (
+                    {(formData.truckDetails?.truckNumbers || ['']).map((truckNumber, index) => (
                         <div key={index} className="flex items-center gap-2">
                             <input
                                 type="text"
@@ -414,12 +418,12 @@ function BillingView({ setView, bills, lrs, db, userId, handleDeleteRequest, pdf
 }
 
 function CreateBillForm({ db, userId, setView, lrs, showAlert }) { 
-    const [billNumber, setBillNumber] = React.useState(''); 
-    const [billDate, setBillDate] = React.useState(new Date().toISOString().split('T')[0]); 
-    const [selectedLrs, setSelectedLrs] = React.useState([]); 
-    const [companyName, setCompanyName] = React.useState('GLOBAL LOGISTICS'); 
-    const [billTo, setBillTo] = React.useState('Consignee'); 
-    const [partyName, setPartyName] = React.useState(''); 
+    const [billNumber, setBillNumber] = useState(''); 
+    const [billDate, setBillDate] = useState(new Date().toISOString().split('T')[0]); 
+    const [selectedLrs, setSelectedLrs] = useState([]); 
+    const [companyName, setCompanyName] = useState('GLOBAL LOGISTICS'); 
+    const [billTo, setBillTo] = useState('Consignee'); 
+    const [partyName, setPartyName] = useState(''); 
     const unbilledLrs = lrs.filter(lr => !lr.isBilled && lr.companyName === companyName); 
     const handleLrSelection = (lrId) => { 
         const lr = unbilledLrs.find(l => l.id === lrId); 
@@ -593,39 +597,30 @@ function StatementView({ bills, lrs, parties, pdfScriptsLoaded, showAlert }) {
 
 // --- Main App Component ---
 function App() {
-    const [view, setView] = React.useState('lrs');
-    const [lrs, setLrs] = React.useState([]);
-    const [bills, setBills] = React.useState([]);
-    const [parties, setParties] = React.useState([]);
-    const [editingLr, setEditingLr] = React.useState(null);
-    const [loading, setLoading] = React.useState(true);
-    const [userId, setUserId] = React.useState(null);
-    const [confirmation, setConfirmation] = React.useState(null);
-    const [alertInfo, setAlertInfo] = React.useState(null);
-
-    const showAlert = React.useCallback((title, message) => {
+    const [view, setView] = useState('lrs');
+    const [lrs, setLrs] = useState([]);
+    const [bills, setBills] = useState([]);
+    const [parties, setParties] = useState([]);
+    const [editingLr, setEditingLr] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [user, setUser] = useState(null); // Changed from userId to user object
+    const [confirmation, setConfirmation] = useState(null);
+    const [alertInfo, setAlertInfo] = useState(null);
+    
+    const showAlert = useCallback((title, message) => {
         setAlertInfo({ title, message });
     }, []);
 
-    React.useEffect(() => {
-        const unsubscribe = auth.onAuthStateChanged(async (user) => {
-            if (user) {
-                setUserId(user.uid);
-            } else {
-                try {
-                    await auth.signInAnonymously();
-                } catch (error) { 
-                    console.error("Firebase Anonymous Auth Error:", error); 
-                    showAlert("Authentication Error", "Could not sign in anonymously.");
-                }
-            }
+    useEffect(() => {
+        const unsubscribe = auth.onAuthStateChanged((user) => {
+            setUser(user);
             setLoading(false);
         });
         return () => unsubscribe();
-    }, [showAlert]);
+    }, []);
 
-    React.useEffect(() => {
-        if (!userId) return;
+    useEffect(() => {
+        if (!user) return;
 
         const collections = {
             lrs: (data) => setLrs(data.sort((a, b) => String(a.lrNumber).localeCompare(String(b.lrNumber), undefined, { numeric: true }))),
@@ -634,7 +629,7 @@ function App() {
         };
 
         const unsubscribers = Object.entries(collections).map(([path, setter]) => {
-            const query = db.collection('users').doc(userId).collection(path);
+            const query = db.collection('users').doc(user.uid).collection(path);
             return query.onSnapshot((snapshot) => {
                 const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
                 setter(data);
@@ -645,9 +640,9 @@ function App() {
         });
 
         return () => unsubscribers.forEach(unsub => unsub());
-    }, [userId, showAlert]);
+    }, [user, showAlert]);
     
-    const handleDeleteRequest = React.useCallback((message, onConfirmAction) => {
+    const handleDeleteRequest = useCallback((message, onConfirmAction) => {
         setConfirmation({ message, onConfirm: onConfirmAction });
     }, []);
 
@@ -660,22 +655,21 @@ function App() {
 
     const handleCancelDelete = () => setConfirmation(null);
     
-    const handleDelete = React.useCallback(async (id, collectionName) => {
-        if (!userId) return;
+    const handleDelete = useCallback(async (id, collectionName) => {
+        if (!user) return;
         try {
-            await db.collection('users').doc(userId).collection(collectionName).doc(id).delete();
+            await db.collection('users').doc(user.uid).collection(collectionName).doc(id).delete();
         } catch (error) {
             console.error(`Delete Error in ${collectionName}:`, error);
             showAlert("Deletion Failed", `Could not delete the item from ${collectionName}.`);
         }
-    }, [userId, showAlert]);
+    }, [user, showAlert]);
 
     const handleSetView = (newView) => { setEditingLr(null); setView(newView); };
     const handleEditLr = (lr) => { setEditingLr(lr); setView('add_lr'); };
 
     const renderView = () => {
-        if (loading) return <div className="text-center p-10 font-semibold text-slate-500">Connecting to your data...</div>;
-        const props = { db, userId, setView, lrs, bills, parties, handleDeleteRequest, handleDelete, showAlert };
+        const props = { db, userId: user?.uid, setView, lrs, bills, parties, handleDeleteRequest, handleDelete, showAlert };
         switch (view) {
             case 'add_lr': return <LrForm {...props} existingLr={editingLr} />;
             case 'billing': return <BillingView {...props} pdfScriptsLoaded={true} />;
@@ -685,6 +679,14 @@ function App() {
             case 'lrs': default: return <LrView {...props} handleEditLr={handleEditLr} />;
         }
     };
+    
+    if (loading) {
+        return <div className="min-h-screen flex items-center justify-center bg-slate-50"><p className="text-xl font-semibold text-slate-500">Loading...</p></div>;
+    }
+
+    if (!user) {
+        return <LoginScreen showAlert={showAlert} />;
+    }
 
     return (
         <div className="bg-slate-50 min-h-screen font-sans">
@@ -693,6 +695,10 @@ function App() {
             <div className="container mx-auto p-2 sm:p-4">
                 <header className="bg-white rounded-lg shadow p-4 mb-6 flex justify-between items-center">
                     <div className="flex items-center gap-3"><TruckIcon className="h-8 w-8 text-indigo-600" /><h1 className="text-xl sm:text-2xl font-bold text-slate-800">Transport Dashboard</h1></div>
+                    <button onClick={() => auth.signOut()} className="flex items-center gap-2 text-sm font-semibold text-red-500 hover:text-red-700 transition-colors">
+                        <LogOutIcon className="h-5 w-5"/>
+                        Logout
+                    </button>
                 </header>
                 <nav className="bg-white rounded-lg shadow p-2 flex flex-wrap gap-2 mb-6">
                     <NavButton icon={<FileTextIcon />} label="LRs" active={view === 'lrs' || view === 'add_lr'} onClick={() => handleSetView('lrs')} />
@@ -706,4 +712,52 @@ function App() {
     );
 }
 
+function LoginScreen({ showAlert }) {
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+
+    const handleLogin = async (e) => {
+        e.preventDefault();
+        try {
+            await auth.signInWithEmailAndPassword(email, password);
+        } catch (error) {
+            console.error("Login Error:", error);
+            showAlert("Login Failed", error.message);
+        }
+    };
+    
+    return (
+        <div className="min-h-screen bg-slate-100 flex flex-col justify-center items-center p-4">
+            <div className="max-w-md w-full bg-white p-8 rounded-lg shadow-md">
+                <div className="flex justify-center mb-6">
+                     <TruckIcon className="h-12 w-12 text-indigo-600" />
+                </div>
+                <h2 className="text-2xl font-bold text-center text-slate-800 mb-6">Transport Dashboard Login</h2>
+                <form onSubmit={handleLogin} className="space-y-6">
+                    <Input 
+                        label="Email Address"
+                        type="email" 
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required 
+                    />
+                    <Input 
+                        label="Password"
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required 
+                    />
+                    <div>
+                        <button type="submit" className="w-full bg-indigo-600 text-white p-3 rounded-md font-semibold hover:bg-indigo-700 transition-colors">
+                            Sign In
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
 export default App;
+
