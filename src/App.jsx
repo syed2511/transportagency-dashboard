@@ -144,7 +144,7 @@ const PartySelector = ({ parties, onSelect, onAddNew, selectedPartyName }) => <s
 const InfoBox = ({ data }) => <div className="mt-2 text-sm bg-slate-50 p-3 rounded-md min-h-[6rem] border"><p className="font-semibold text-slate-700">Address:</p><p className="text-slate-600">{data?.address || 'N/A'}</p><p className="font-semibold text-slate-700 mt-1">GSTIN:</p><p className="text-slate-600">{data?.gstin || 'N/A'}</p></div>;
 
 function NewPartyModal({ onSave, onCancel, showAlert }) { 
-    const [newParty, setNewParty] = React.useState({ name: '', address: '', gstin: '' }); 
+    const [newParty, setNewParty] = useState({ name: '', address: '', gstin: '' }); 
     const handleSaveClick = () => { 
         if (!newParty.name) { showAlert("Validation Error", "Party name is required."); return; } 
         onSave(newParty); 
@@ -159,8 +159,8 @@ function NewPartyModal({ onSave, onCancel, showAlert }) {
                     <Input label="GSTIN" value={newParty.gstin} onChange={e => setNewParty({...newParty, gstin: e.target.value})} />
                 </div>
                 <div className="flex justify-end gap-2 mt-6">
-                    <button onClick={onCancel} className="btn-secondary">Cancel</button>
-                    <button onClick={handleSaveClick} className="btn-primary">Save Party</button>
+                    <button type="button" onClick={onCancel} className="btn-secondary">Cancel</button>
+                    <button type="button" onClick={handleSaveClick} className="btn-primary">Save Party</button>
                 </div>
             </div>
             <style>{`.btn-primary{background:#4F46E5; color:white; padding:8px 16px; border-radius:8px;} .btn-secondary{background:#E5E7EB; color:#374151; padding:8px 16px; border-radius:8px;}`}</style>
@@ -170,7 +170,7 @@ function NewPartyModal({ onSave, onCancel, showAlert }) {
 
 // --- View Components ---
 function LrView({ lrs, bills, handleEditLr, handleDelete, setView, handleDeleteRequest }) { 
-    const [activeCompany, setActiveCompany] = React.useState('ALL'); 
+    const [activeCompany, setActiveCompany] = useState('ALL'); 
     const companies = ['ALL', 'SAI KUMAR TRANSPORT', 'SRI KUMAR TRANSPORT', 'GLOBAL LOGISTICS']; 
     const billedLrIds = new Set(bills.flatMap(b => b.lrIds)); 
     const filteredLrs = lrs.filter(lr => activeCompany === 'ALL' || lr.companyName === activeCompany); 
@@ -209,7 +209,7 @@ function LrView({ lrs, bills, handleEditLr, handleDelete, setView, handleDeleteR
 }
 
 function LrForm({ db, userId, setView, parties, existingLr, showAlert }) { 
-    const getInitialData = React.useCallback(() => ({ 
+    const getInitialData = useCallback(() => ({ 
         companyName: 'SAI KUMAR TRANSPORT', 
         lrNumber: '', 
         bookingDate: new Date().toISOString().split('T')[0], 
@@ -221,11 +221,11 @@ function LrForm({ db, userId, setView, parties, existingLr, showAlert }) {
         isBilled: false 
     }), []); 
     
-    const [formData, setFormData] = React.useState(existingLr || getInitialData()); 
-    const [isAddingParty, setIsAddingParty] = React.useState(false); 
-    const [partyTypeToAdd, setPartyTypeToAdd] = React.useState(null); 
+    const [formData, setFormData] = useState(existingLr || getInitialData()); 
+    const [isAddingParty, setIsAddingParty] = useState(false); 
+    const [partyTypeToAdd, setPartyTypeToAdd] = useState(null); 
     
-    React.useEffect(() => { 
+    useEffect(() => { 
         if (existingLr) {
             const truckDetails = existingLr.truckDetails || {};
             const truckNumbers = Array.isArray(truckDetails.truckNumbers) && truckDetails.truckNumbers.length > 0 ? truckDetails.truckNumbers : (truckDetails.truckNumber ? [truckDetails.truckNumber] : ['']);
@@ -237,29 +237,36 @@ function LrForm({ db, userId, setView, parties, existingLr, showAlert }) {
     
     const handlePartySelect = (party, type) => { if (party) setFormData(prev => ({ ...prev, [type]: { name: party.name, address: party.address, gstin: party.gstin } }));}; 
     const handleOpenNewPartyModal = (type) => { setPartyTypeToAdd(type); setIsAddingParty(true); }; 
+    
+    // FIXED: Close modal instantly for better UX
     const handleSaveNewParty = async (newPartyData) => { 
         if (!userId) {
             showAlert("Error", "You must be logged in to add a new party.");
             return;
         }
+        setIsAddingParty(false); 
+        setPartyTypeToAdd(null);
         try { 
             await db.collection('users').doc(userId).collection('parties').add(newPartyData);
-            setIsAddingParty(false); 
-            setPartyTypeToAdd(null); 
             showAlert("Success", "New party added successfully.");
-        } catch (error) { console.error("Error saving new party:", error); showAlert("Save Failed", "Could not save the new party."); } 
+        } catch (error) { 
+            console.error("Error saving new party:", error); 
+            showAlert("Save Failed", "Could not save the new party."); 
+        } 
     }; 
+    
     const handleChange = (e, section, field) => setFormData(prev => ({ ...prev, [section]: { ...prev[section], [field]: e.target.value } })); 
     const handleRootChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value })); 
 
     const handleTruckNumberChange = (e, index) => {
-        const newTruckNumbers = [...formData.truckDetails.truckNumbers];
+        const newTruckNumbers = [...(formData.truckDetails.truckNumbers || [])];
         newTruckNumbers[index] = e.target.value;
         setFormData(prev => ({ ...prev, truckDetails: { ...prev.truckDetails, truckNumbers: newTruckNumbers }}));
     };
 
     const addTruckNumberField = () => {
-        setFormData(prev => ({ ...prev, truckDetails: { ...prev.truckDetails, truckNumbers: [...prev.truckDetails.truckNumbers, ''] }}));
+        const currentTrucks = formData.truckDetails.truckNumbers || [];
+        setFormData(prev => ({ ...prev, truckDetails: { ...prev.truckDetails, truckNumbers: [...currentTrucks, ''] }}));
     };
 
     const removeTruckNumberField = (index) => {
@@ -489,8 +496,8 @@ function CreateBillForm({ db, userId, setView, lrs, showAlert }) {
 }
 
 function PartiesView({ parties, db, userId, handleDelete, handleDeleteRequest, showAlert }) { 
-    const [isAdding, setIsAdding] = React.useState(false); 
-    const [newParty, setNewParty] = React.useState({ name: '', address: '', gstin: '' }); 
+    const [isAdding, setIsAdding] = useState(false); 
+    const [newParty, setNewParty] = useState({ name: '', address: '', gstin: '' }); 
     const handleSave = async () => { 
         if (!newParty.name) { showAlert("Validation Error", "Party name is required."); return; } 
         await db.collection('users').doc(userId).collection('parties').add(newParty); 
@@ -595,6 +602,58 @@ function StatementView({ bills, lrs, parties, pdfScriptsLoaded, showAlert }) {
     );
 }
 
+// --- Login Screen Component ---
+function LoginScreen({ showAlert }) {
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+
+    const handleLogin = async (e) => {
+        e.preventDefault();
+        if (!email || !password) {
+            showAlert("Login Error", "Please enter both email and password.");
+            return;
+        }
+        try {
+            await auth.signInWithEmailAndPassword(email, password);
+        } catch (error) {
+            console.error("Login Error:", error);
+            showAlert("Login Failed", error.message);
+        }
+    };
+    
+    return (
+        <div className="min-h-screen bg-slate-100 flex flex-col justify-center items-center p-4">
+            <div className="max-w-md w-full bg-white p-8 rounded-lg shadow-md">
+                <div className="flex justify-center mb-6">
+                     <TruckIcon className="h-12 w-12 text-indigo-600" />
+                </div>
+                <h2 className="text-2xl font-bold text-center text-slate-800 mb-6">Transport Dashboard Login</h2>
+                <form onSubmit={handleLogin} className="space-y-6">
+                    <Input 
+                        label="Email Address"
+                        type="email" 
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required 
+                    />
+                    <Input 
+                        label="Password"
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required 
+                    />
+                    <div>
+                        <button type="submit" className="w-full bg-indigo-600 text-white p-3 rounded-md font-semibold hover:bg-indigo-700 transition-colors">
+                            Sign In
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
 // --- Main App Component ---
 function App() {
     const [view, setView] = useState('lrs');
@@ -603,10 +662,10 @@ function App() {
     const [parties, setParties] = useState([]);
     const [editingLr, setEditingLr] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [user, setUser] = useState(null); // Changed from userId to user object
+    const [user, setUser] = useState(null);
     const [confirmation, setConfirmation] = useState(null);
     const [alertInfo, setAlertInfo] = useState(null);
-    
+
     const showAlert = useCallback((title, message) => {
         setAlertInfo({ title, message });
     }, []);
@@ -712,52 +771,4 @@ function App() {
     );
 }
 
-function LoginScreen({ showAlert }) {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-
-    const handleLogin = async (e) => {
-        e.preventDefault();
-        try {
-            await auth.signInWithEmailAndPassword(email, password);
-        } catch (error) {
-            console.error("Login Error:", error);
-            showAlert("Login Failed", error.message);
-        }
-    };
-    
-    return (
-        <div className="min-h-screen bg-slate-100 flex flex-col justify-center items-center p-4">
-            <div className="max-w-md w-full bg-white p-8 rounded-lg shadow-md">
-                <div className="flex justify-center mb-6">
-                     <TruckIcon className="h-12 w-12 text-indigo-600" />
-                </div>
-                <h2 className="text-2xl font-bold text-center text-slate-800 mb-6">Transport Dashboard Login</h2>
-                <form onSubmit={handleLogin} className="space-y-6">
-                    <Input 
-                        label="Email Address"
-                        type="email" 
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required 
-                    />
-                    <Input 
-                        label="Password"
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required 
-                    />
-                    <div>
-                        <button type="submit" className="w-full bg-indigo-600 text-white p-3 rounded-md font-semibold hover:bg-indigo-700 transition-colors">
-                            Sign In
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
-}
-
 export default App;
-
