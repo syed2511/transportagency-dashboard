@@ -222,7 +222,7 @@ function LrView({ lrs, bills, handleEditLr, handleDelete, setView, handleDeleteR
     ); 
 }
 
-function LrForm({ db, userId, setView, parties, existingLr, showAlert }) { 
+function LrForm({ db, userId, setView, parties, existingLr, showAlert, onEditParty }) { 
     const getInitialData = useCallback(() => ({ 
         companyName: 'SAI KUMAR TRANSPORT', 
         lrNumber: '', 
@@ -236,9 +236,6 @@ function LrForm({ db, userId, setView, parties, existingLr, showAlert }) {
     }), []); 
     
     const [formData, setFormData] = useState(existingLr || getInitialData()); 
-    const [isPartyModalOpen, setIsPartyModalOpen] = useState(false);
-    const [editingParty, setEditingParty] = useState(null);
-    const [partyTypeToAdd, setPartyTypeToAdd] = useState(null); 
     
     useEffect(() => { 
         if (existingLr) {
@@ -251,22 +248,6 @@ function LrForm({ db, userId, setView, parties, existingLr, showAlert }) {
     }, [existingLr, getInitialData]); 
     
     const handlePartySelect = (party, type) => { if (party) setFormData(prev => ({ ...prev, [type]: { name: party.name, address: party.address, gstin: party.gstin } }));}; 
-    const handleOpenNewPartyModal = (type) => { setPartyTypeToAdd(type); setIsPartyModalOpen(true); }; 
-    
-    const handleSaveNewParty = async (newPartyData) => { 
-        if (!userId) {
-            showAlert("Error", "You must be logged in to add a new party.");
-            return;
-        }
-        setIsPartyModalOpen(false);
-        try { 
-            await db.collection('users').doc(userId).collection('parties').add(newPartyData);
-            showAlert("Success", "New party added successfully.");
-        } catch (error) { 
-            console.error("Error saving new party:", error); 
-            showAlert("Save Failed", "Could not save the new party."); 
-        } 
-    }; 
     
     const handleChange = (e, section, field) => setFormData(prev => ({ ...prev, [section]: { ...prev[section], [field]: e.target.value } })); 
     const handleRootChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value })); 
@@ -314,7 +295,6 @@ function LrForm({ db, userId, setView, parties, existingLr, showAlert }) {
 
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
-            {isPartyModalOpen && <PartyFormModal onSave={handleSaveNewParty} onCancel={() => setIsPartyModalOpen(false)} showAlert={showAlert} />}
             <h2 className="text-2xl font-bold">{existingLr ? `Edit LR #${existingLr.lrNumber}` : 'Create Lorry Receipt'}</h2>
             <Section title="Core Details">
                 <Input label="Company" name="companyName" value={formData.companyName} onChange={handleRootChange} as="select">
@@ -326,12 +306,12 @@ function LrForm({ db, userId, setView, parties, existingLr, showAlert }) {
             <Section title="Party Details" gridCols="lg:grid-cols-2">
                 <div>
                     <h3 className="font-semibold mb-2 text-slate-600">Consignor (Sender)</h3>
-                    <PartySelector parties={parties} selectedPartyName={formData.consignor?.name} onSelect={(p) => handlePartySelect(p, 'consignor')} onAddNew={() => handleOpenNewPartyModal('consignor')} />
+                    <PartySelector parties={parties} selectedPartyName={formData.consignor?.name} onSelect={(p) => handlePartySelect(p, 'consignor')} onAddNew={() => onEditParty()} />
                     <InfoBox data={formData.consignor} />
                 </div>
                 <div>
                     <h3 className="font-semibold mb-2 text-slate-600">Consignee (Receiver)</h3>
-                    <PartySelector parties={parties} selectedPartyName={formData.consignee?.name} onSelect={(p) => handlePartySelect(p, 'consignee')} onAddNew={() => handleOpenNewPartyModal('consignee')}/>
+                    <PartySelector parties={parties} selectedPartyName={formData.consignee?.name} onSelect={(p) => handlePartySelect(p, 'consignee')} onAddNew={() => onEditParty()}/>
                     <InfoBox data={formData.consignee} />
                 </div>
             </Section>
@@ -373,7 +353,7 @@ function LrForm({ db, userId, setView, parties, existingLr, showAlert }) {
     ); 
 }
 
-function BillingView({ setView, bills, lrs, db, userId, handleDeleteRequest, pdfScriptsLoaded, showAlert }) { 
+function BillingView({ setView, bills, lrs, db, userId, handleDeleteRequest, showAlert }) { 
     const handleDeleteBill = async (billId, lrIds) => { 
         const batch = db.batch(); 
         const billRef = db.collection('users').doc(userId).collection('bills').doc(billId); 
@@ -421,7 +401,7 @@ function BillingView({ setView, bills, lrs, db, userId, handleDeleteRequest, pdf
                             </div>
                             <div className="flex items-center gap-2 self-end sm:self-center">
                                 <span className="font-bold text-lg text-slate-700">₹{bill.totalAmount.toFixed(2)}</span>
-                                <button onClick={() => handleDownload(bill)} disabled={!pdfScriptsLoaded} className="btn-icon disabled:opacity-50 disabled:cursor-not-allowed"><DownloadIcon className="h-5 w-5"/></button>
+                                <button onClick={() => handleDownload(bill)} className="btn-icon"><DownloadIcon className="h-5 w-5"/></button>
                                 {bill.status !== 'Paid' && (
                                     <button onClick={() => handleMarkAsPaid(bill.id)} title="Mark as Paid" className="p-2 rounded-md bg-green-500 text-white hover:bg-green-600 transition-colors">
                                         <CheckCircleIcon className="h-5 w-5"/>
