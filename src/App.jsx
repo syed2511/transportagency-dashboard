@@ -143,29 +143,43 @@ const Input = ({ label, as = 'input', children, ...props }) => <div className="f
 const PartySelector = ({ parties, onSelect, onAddNew, selectedPartyName }) => <select value={parties.find(p=>p.name === selectedPartyName)?.id || ''} onChange={(e) => e.target.value === 'add_new' ? onAddNew() : onSelect(parties.find(p => p.id === e.target.value))} className="p-2 border rounded-md w-full bg-white"><option value="">Select Party</option>{parties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}<option value="add_new" className="font-bold text-indigo-600">... Add New Party ...</option></select>;
 const InfoBox = ({ data }) => <div className="mt-2 text-sm bg-slate-50 p-3 rounded-md min-h-[6rem] border"><p className="font-semibold text-slate-700">Address:</p><p className="text-slate-600">{data?.address || 'N/A'}</p><p className="font-semibold text-slate-700 mt-1">GSTIN:</p><p className="text-slate-600">{data?.gstin || 'N/A'}</p></div>;
 
-function NewPartyModal({ onSave, onCancel, showAlert }) { 
-    const [newParty, setNewParty] = useState({ name: '', address: '', gstin: '' }); 
-    const handleSaveClick = () => { 
-        if (!newParty.name) { showAlert("Validation Error", "Party name is required."); return; } 
-        onSave(newParty); 
-    }; 
+function PartyFormModal({ party, onSave, onCancel, showAlert }) {
+    const [formData, setFormData] = useState(party || { name: '', address: '', gstin: '' });
+
+    useEffect(() => {
+        setFormData(party || { name: '', address: '', gstin: '' });
+    }, [party]);
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleSave = () => {
+        if (!formData.name) {
+            showAlert("Validation Error", "Party name is required.");
+            return;
+        }
+        onSave(formData);
+    };
+
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
             <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
-                <h3 className="text-lg font-bold mb-4">Add New Party</h3>
+                <h3 className="text-lg font-bold mb-4">{party ? 'Edit Party' : 'Add New Party'}</h3>
                 <div className="space-y-4">
-                    <Input label="Party Name (Required)" value={newParty.name} onChange={e => setNewParty({...newParty, name: e.target.value})} />
-                    <Input label="Address" value={newParty.address} onChange={e => setNewParty({...newParty, address: e.target.value})} />
-                    <Input label="GSTIN" value={newParty.gstin} onChange={e => setNewParty({...newParty, gstin: e.target.value})} />
+                    <Input label="Party Name (Required)" name="name" value={formData.name} onChange={handleChange} />
+                    <Input label="Address" name="address" value={formData.address} onChange={handleChange} />
+                    <Input label="GSTIN" name="gstin" value={formData.gstin} onChange={handleChange} />
                 </div>
                 <div className="flex justify-end gap-2 mt-6">
                     <button type="button" onClick={onCancel} className="btn-secondary">Cancel</button>
-                    <button type="button" onClick={handleSaveClick} className="btn-primary">Save Party</button>
+                    <button type="button" onClick={handleSave} className="btn-primary">Save Party</button>
                 </div>
             </div>
             <style>{`.btn-primary{background:#4F46E5; color:white; padding:8px 16px; border-radius:8px;} .btn-secondary{background:#E5E7EB; color:#374151; padding:8px 16px; border-radius:8px;}`}</style>
         </div>
-    ); 
+    );
 }
 
 // --- View Components ---
@@ -222,7 +236,8 @@ function LrForm({ db, userId, setView, parties, existingLr, showAlert }) {
     }), []); 
     
     const [formData, setFormData] = useState(existingLr || getInitialData()); 
-    const [isAddingParty, setIsAddingParty] = useState(false); 
+    const [isPartyModalOpen, setIsPartyModalOpen] = useState(false);
+    const [editingParty, setEditingParty] = useState(null);
     const [partyTypeToAdd, setPartyTypeToAdd] = useState(null); 
     
     useEffect(() => { 
@@ -236,16 +251,14 @@ function LrForm({ db, userId, setView, parties, existingLr, showAlert }) {
     }, [existingLr, getInitialData]); 
     
     const handlePartySelect = (party, type) => { if (party) setFormData(prev => ({ ...prev, [type]: { name: party.name, address: party.address, gstin: party.gstin } }));}; 
-    const handleOpenNewPartyModal = (type) => { setPartyTypeToAdd(type); setIsAddingParty(true); }; 
+    const handleOpenNewPartyModal = (type) => { setPartyTypeToAdd(type); setIsPartyModalOpen(true); }; 
     
-    // FIXED: Close modal instantly for better UX
     const handleSaveNewParty = async (newPartyData) => { 
         if (!userId) {
             showAlert("Error", "You must be logged in to add a new party.");
             return;
         }
-        setIsAddingParty(false); 
-        setPartyTypeToAdd(null);
+        setIsPartyModalOpen(false);
         try { 
             await db.collection('users').doc(userId).collection('parties').add(newPartyData);
             showAlert("Success", "New party added successfully.");
@@ -294,13 +307,14 @@ function LrForm({ db, userId, setView, parties, existingLr, showAlert }) {
             } else { 
                 await lrsCollection.add(finalFormData); 
             } 
+            showAlert("Success", `LR #${finalFormData.lrNumber} saved successfully!`);
             setView('lrs'); 
         } catch (error) { console.error("Error saving LR:", error); showAlert("Save Failed", "Could not save the LR data."); } 
     }; 
 
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
-            {isAddingParty && <NewPartyModal onSave={handleSaveNewParty} onCancel={() => setIsAddingParty(false)} showAlert={showAlert} />}
+            {isPartyModalOpen && <PartyFormModal onSave={handleSaveNewParty} onCancel={() => setIsPartyModalOpen(false)} showAlert={showAlert} />}
             <h2 className="text-2xl font-bold">{existingLr ? `Edit LR #${existingLr.lrNumber}` : 'Create Lorry Receipt'}</h2>
             <Section title="Core Details">
                 <Input label="Company" name="companyName" value={formData.companyName} onChange={handleRootChange} as="select">
@@ -495,35 +509,13 @@ function CreateBillForm({ db, userId, setView, lrs, showAlert }) {
     ); 
 }
 
-function PartiesView({ parties, db, userId, handleDelete, handleDeleteRequest, showAlert }) { 
-    const [isAdding, setIsAdding] = useState(false); 
-    const [newParty, setNewParty] = useState({ name: '', address: '', gstin: '' }); 
-    const handleSave = async () => { 
-        if (!newParty.name) { showAlert("Validation Error", "Party name is required."); return; } 
-        await db.collection('users').doc(userId).collection('parties').add(newParty); 
-        setNewParty({ name: '', address: '', gstin: '' }); 
-        setIsAdding(false); 
-    }; 
+function PartiesView({ parties, db, userId, handleDelete, handleDeleteRequest, showAlert, onEditParty }) { 
     return (
         <div>
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-bold">Manage Parties</h2>
-                {!isAdding && <button onClick={() => setIsAdding(true)} className="btn-primary flex items-center gap-2"><PlusCircleIcon/>Add Party</button>}
+                <button onClick={() => onEditParty()} className="btn-primary flex items-center gap-2"><PlusCircleIcon/>Add Party</button>
             </div>
-            {isAdding && (
-                <div className="p-4 bg-slate-50 border rounded-lg mb-4 space-y-4">
-                    <h3 className="font-semibold">New Party Details</h3>
-                    <div className="grid md:grid-cols-3 gap-4">
-                        <Input placeholder="Party Name" value={newParty.name} onChange={e => setNewParty({...newParty, name: e.target.value})}/>
-                        <Input placeholder="Address" value={newParty.address} onChange={e => setNewParty({...newParty, address: e.target.value})}/>
-                        <Input placeholder="GSTIN" value={newParty.gstin} onChange={e => setNewParty({...newParty, gstin: e.target.value})}/>
-                    </div>
-                    <div className="flex justify-end gap-2">
-                        <button onClick={() => setIsAdding(false)} className="btn-secondary">Cancel</button>
-                        <button onClick={handleSave} className="bg-green-500 text-white px-4 py-2 rounded-lg">Save</button>
-                    </div>
-                </div>
-            )}
             <div className="overflow-x-auto">
                 <table className="min-w-full text-sm">
                     <thead><tr><th className="th">Name</th><th className="th">Address</th><th className="th">GSTIN</th><th className="th">Actions</th></tr></thead>
@@ -533,7 +525,10 @@ function PartiesView({ parties, db, userId, handleDelete, handleDeleteRequest, s
                                 <td className="td">{p.name}</td>
                                 <td className="td">{p.address}</td>
                                 <td className="td">{p.gstin}</td>
-                                <td className="td"><button onClick={() => handleDeleteRequest(`Are you sure you want to delete party '${p.name}'?`, () => handleDelete(p.id, 'parties'))} className="text-red-600 font-semibold">Delete</button></td>
+                                <td className="td flex gap-4">
+                                    <button onClick={() => onEditParty(p)} className="text-indigo-600 font-semibold">Edit</button>
+                                    <button onClick={() => handleDeleteRequest(`Are you sure you want to delete party '${p.name}'?`, () => handleDelete(p.id, 'parties'))} className="text-red-600 font-semibold">Delete</button>
+                                </td>
                             </tr>
                         ))}
                     </tbody>
@@ -665,6 +660,8 @@ function App() {
     const [user, setUser] = useState(null);
     const [confirmation, setConfirmation] = useState(null);
     const [alertInfo, setAlertInfo] = useState(null);
+    const [editingParty, setEditingParty] = useState(null);
+    const [isPartyModalOpen, setIsPartyModalOpen] = useState(false);
 
     const showAlert = useCallback((title, message) => {
         setAlertInfo({ title, message });
@@ -724,11 +721,38 @@ function App() {
         }
     }, [user, showAlert]);
 
+    const handleOpenPartyModal = (party = null) => {
+        setEditingParty(party);
+        setIsPartyModalOpen(true);
+    };
+
+    const handleSaveParty = async (partyData) => {
+        if (!user) {
+            showAlert("Error", "You must be logged in.");
+            return;
+        }
+        setIsPartyModalOpen(false);
+        setEditingParty(null);
+        try {
+            if (partyData.id) {
+                const { id, ...dataToSave } = partyData;
+                await db.collection('users').doc(user.uid).collection('parties').doc(id).update(dataToSave);
+                showAlert("Success", "Party updated successfully.");
+            } else {
+                await db.collection('users').doc(user.uid).collection('parties').add(partyData);
+                showAlert("Success", "New party added successfully.");
+            }
+        } catch (error) {
+            console.error("Error saving party:", error);
+            showAlert("Save Failed", "Could not save the party details.");
+        }
+    };
+
     const handleSetView = (newView) => { setEditingLr(null); setView(newView); };
     const handleEditLr = (lr) => { setEditingLr(lr); setView('add_lr'); };
 
     const renderView = () => {
-        const props = { db, userId: user?.uid, setView, lrs, bills, parties, handleDeleteRequest, handleDelete, showAlert };
+        const props = { db, userId: user?.uid, setView, lrs, bills, parties, handleDeleteRequest, handleDelete, showAlert, onEditParty: handleOpenPartyModal };
         switch (view) {
             case 'add_lr': return <LrForm {...props} existingLr={editingLr} />;
             case 'billing': return <BillingView {...props} pdfScriptsLoaded={true} />;
@@ -749,6 +773,7 @@ function App() {
 
     return (
         <div className="bg-slate-50 min-h-screen font-sans">
+            {isPartyModalOpen && <PartyFormModal party={editingParty} onSave={handleSaveParty} onCancel={() => setIsPartyModalOpen(false)} showAlert={showAlert} />}
             {confirmation && <ConfirmModal message={confirmation.message} onConfirm={handleConfirmDelete} onCancel={handleCancelDelete} />}
             {alertInfo && <AlertModal title={alertInfo.title} message={alertInfo.message} onClose={() => setAlertInfo(null)} />}
             <div className="container mx-auto p-2 sm:p-4">
