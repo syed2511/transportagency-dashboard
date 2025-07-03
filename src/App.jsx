@@ -659,10 +659,6 @@ function App() {
     }, []);
 
     useEffect(() => {
-        localStorage.setItem('currentView', view);
-    }, [view]);
-
-    useEffect(() => {
         const unsubscribe = auth.onAuthStateChanged((user) => {
             setUser(user);
             setLoading(false);
@@ -693,6 +689,33 @@ function App() {
         return () => unsubscribers.forEach(unsub => unsub());
     }, [user, showAlert]);
     
+    const handleSetView = (newView) => { 
+        setEditingLr(null); 
+        localStorage.removeItem('editingLrId');
+        setView(newView); 
+    };
+
+    const handleEditLr = (lr) => { 
+        localStorage.setItem('editingLrId', lr.id);
+        setEditingLr(lr); 
+        setView('add_lr'); 
+    };
+    
+    // Restore editing state on refresh
+    useEffect(() => {
+        if(lrs.length > 0) {
+            const savedLrId = localStorage.getItem('editingLrId');
+            if (savedLrId) {
+                const lrToEdit = lrs.find(lr => lr.id === savedLrId);
+                if (lrToEdit) {
+                    setEditingLr(lrToEdit);
+                } else {
+                    localStorage.removeItem('editingLrId');
+                }
+            }
+        }
+    }, [lrs]);
+
     const handleDeleteRequest = useCallback((message, onConfirmAction) => {
         setConfirmation({ message, onConfirm: onConfirmAction });
     }, []);
@@ -743,11 +766,8 @@ function App() {
         }
     };
 
-    const handleSetView = (newView) => { setEditingLr(null); setView(newView); };
-    const handleEditLr = (lr) => { setEditingLr(lr); setView('add_lr'); };
-
     const renderView = () => {
-        const props = { db, userId: user?.uid, setView, lrs, bills, parties, handleDeleteRequest, handleDelete, showAlert, onEditParty: handleOpenPartyModal };
+        const props = { db, userId: user?.uid, setView: handleSetView, lrs, bills, parties, handleDeleteRequest, handleDelete, showAlert, onEditParty: handleOpenPartyModal };
         switch (view) {
             case 'add_lr': return <LrForm {...props} existingLr={editingLr} />;
             case 'billing': return <BillingView {...props} />;
