@@ -578,20 +578,25 @@ function StatementView({ bills, lrs, parties, showAlert }) {
 
 // --- Login Screen Component ---
 function LoginScreen({ showAlert }) {
+    const [isRegistering, setIsRegistering] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
 
-    const handleLogin = async (e) => {
+    const handleAuthAction = async (e) => {
         e.preventDefault();
         if (!email || !password) {
-            showAlert("Login Error", "Please enter both email and password.");
+            showAlert("Authentication Error", "Please enter both email and password.");
             return;
         }
         try {
-            await auth.signInWithEmailAndPassword(email, password);
+            if (isRegistering) {
+                await auth.createUserWithEmailAndPassword(email, password);
+            } else {
+                await auth.signInWithEmailAndPassword(email, password);
+            }
         } catch (error) {
-            console.error("Login Error:", error);
-            showAlert("Login Failed", error.message);
+            console.error("Authentication Error:", error);
+            showAlert("Authentication Failed", error.message);
         }
     };
     
@@ -601,8 +606,10 @@ function LoginScreen({ showAlert }) {
                 <div className="flex justify-center mb-6">
                      <TruckIcon className="h-12 w-12 text-indigo-600" />
                 </div>
-                <h2 className="text-2xl font-bold text-center text-slate-800 mb-6">Transport Dashboard Login</h2>
-                <form onSubmit={handleLogin} className="space-y-6">
+                <h2 className="text-2xl font-bold text-center text-slate-800 mb-6">
+                    {isRegistering ? 'Create an Account' : 'Transport Dashboard Login'}
+                </h2>
+                <form onSubmit={handleAuthAction} className="space-y-6">
                     <Input 
                         label="Email Address"
                         type="email" 
@@ -619,10 +626,15 @@ function LoginScreen({ showAlert }) {
                     />
                     <div>
                         <button type="submit" className="w-full bg-indigo-600 text-white p-3 rounded-md font-semibold hover:bg-indigo-700 transition-colors">
-                            Sign In
+                            {isRegistering ? 'Sign Up' : 'Sign In'}
                         </button>
                     </div>
                 </form>
+                <div className="mt-6 text-center">
+                    <button onClick={() => setIsRegistering(!isRegistering)} className="text-sm text-indigo-600 hover:underline">
+                        {isRegistering ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
+                    </button>
+                </div>
             </div>
         </div>
     );
@@ -630,7 +642,6 @@ function LoginScreen({ showAlert }) {
 
 // --- Main App Component ---
 function App() {
-    // FIXED: Initialize view state from localStorage, defaulting to 'lrs'
     const [view, setView] = useState(() => localStorage.getItem('currentView') || 'lrs');
     const [lrs, setLrs] = useState([]);
     const [bills, setBills] = useState([]);
@@ -647,7 +658,6 @@ function App() {
         setAlertInfo({ title, message });
     }, []);
 
-    // FIXED: Save the current view to localStorage whenever it changes
     useEffect(() => {
         localStorage.setItem('currentView', view);
     }, [view]);
