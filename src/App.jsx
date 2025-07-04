@@ -643,9 +643,9 @@ function LoginScreen({ showAlert }) {
 // --- Main App Component ---
 function App() {
     const [view, setView] = useState(() => localStorage.getItem('currentView') || 'lrs');
-    const [lrs, setLrs] = useState(() => JSON.parse(localStorage.getItem('lrs')) || []);
-    const [bills, setBills] = useState(() => JSON.parse(localStorage.getItem('bills')) || []);
-    const [parties, setParties] = useState(() => JSON.parse(localStorage.getItem('parties')) || []);
+    const [lrs, setLrs] = useState([]);
+    const [bills, setBills] = useState([]);
+    const [parties, setParties] = useState([]);
     const [editingLr, setEditingLr] = useState(null);
     const [loading, setLoading] = useState(true);
     const [user, setUser] = useState(null);
@@ -663,11 +663,7 @@ function App() {
             setUser(user);
             setLoading(false);
             if (!user) {
-                // Clear local cache on logout
-                localStorage.removeItem('lrs');
-                localStorage.removeItem('bills');
-                localStorage.removeItem('parties');
-                localStorage.removeItem('currentView');
+                localStorage.clear();
             }
         });
         return () => unsubscribe();
@@ -677,18 +673,9 @@ function App() {
         if (!user) return;
 
         const collections = {
-            lrs: (data) => {
-                setLrs(data);
-                localStorage.setItem('lrs', JSON.stringify(data));
-            },
-            bills: (data) => {
-                setBills(data);
-                localStorage.setItem('bills', JSON.stringify(data));
-            },
-            parties: (data) => {
-                setParties(data);
-                localStorage.setItem('parties', JSON.stringify(data));
-            }
+            lrs: setLrs,
+            bills: setBills,
+            parties: setParties
         };
 
         const unsubscribers = Object.entries(collections).map(([path, setter]) => {
@@ -786,11 +773,6 @@ function App() {
     };
     
     const handleLogout = () => {
-        localStorage.removeItem('lrs');
-        localStorage.removeItem('bills');
-        localStorage.removeItem('parties');
-        localStorage.removeItem('currentView');
-        localStorage.removeItem('editingLrId');
         auth.signOut();
     };
 
