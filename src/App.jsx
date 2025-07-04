@@ -201,7 +201,7 @@ function LrView({ lrs, bills, handleEditLr, handleDelete, setView, handleDeleteR
                 <h2 className="text-2xl font-bold text-slate-800">Lorry Receipts</h2>
                 <div className="flex gap-2 items-center">
                     <Input label="Filter by Month" type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} />
-                    <button onClick={() => setView('add_lr')} className="btn-primary flex items-center gap-2"><PlusCircleIcon className="h-5 w-5"/>Add New LR</button>
+                    <button onClick={() => setView('add_lr')} className="btn-primary flex items-center gap-2 mt-6"><PlusCircleIcon className="h-5 w-5"/>Add New LR</button>
                 </div>
             </div>
             <div className="border-b border-slate-200 mb-4 flex-wrap flex">
@@ -704,7 +704,7 @@ function App() {
             return query.onSnapshot((snapshot) => {
                 const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
                 setter(data);
-                setDataLoaded(true); // Mark data as loaded once we get the first snapshot
+                setDataLoaded(true); 
             }, (error) => {
                 console.error(`Firestore listener error on ${path}:`, error);
                 showAlert("Database Error", `Failed to load data for ${path}. Please refresh the page.`);
