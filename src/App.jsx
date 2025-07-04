@@ -183,16 +183,26 @@ function PartyFormModal({ party, onSave, onCancel, showAlert }) {
 }
 
 // --- View Components ---
-function LrView({ lrs, bills, handleEditLr, handleDelete, setView, handleDeleteRequest }) { 
+function LrView({ lrs, bills, handleEditLr, handleDelete, setView, handleDeleteRequest, selectedMonth, setSelectedMonth }) { 
     const [activeCompany, setActiveCompany] = useState('ALL'); 
     const companies = ['ALL', 'SAI KUMAR TRANSPORT', 'SRI KUMAR TRANSPORT', 'GLOBAL LOGISTICS']; 
     const billedLrIds = new Set(bills.flatMap(b => b.lrIds)); 
-    const filteredLrs = lrs.filter(lr => activeCompany === 'ALL' || lr.companyName === activeCompany); 
+    
+    const filteredLrs = lrs
+        .filter(lr => activeCompany === 'ALL' || lr.companyName === activeCompany)
+        .filter(lr => {
+            if (!selectedMonth) return true;
+            return lr.bookingDate.startsWith(selectedMonth);
+        });
+
     return (
         <div>
             <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-2">
                 <h2 className="text-2xl font-bold text-slate-800">Lorry Receipts</h2>
-                <button onClick={() => setView('add_lr')} className="btn-primary flex items-center gap-2 w-full sm:w-auto"><PlusCircleIcon className="h-5 w-5"/>Add New LR</button>
+                <div className="flex gap-2 items-center">
+                    <Input label="Filter by Month" type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} />
+                    <button onClick={() => setView('add_lr')} className="btn-primary flex items-center gap-2"><PlusCircleIcon className="h-5 w-5"/>Add New LR</button>
+                </div>
             </div>
             <div className="border-b border-slate-200 mb-4 flex-wrap flex">
                 {companies.map(c => <button key={c} onClick={() => setActiveCompany(c)} className={`py-2 px-4 text-sm font-medium ${activeCompany === c ? 'border-b-2 border-indigo-500 text-indigo-600' : 'text-slate-500 hover:text-slate-800'}`}>{c}</button>)}
@@ -353,7 +363,7 @@ function LrForm({ db, userId, setView, parties, existingLr, showAlert, onEditPar
     ); 
 }
 
-function BillingView({ setView, bills, lrs, db, userId, handleDeleteRequest, showAlert }) { 
+function BillingView({ setView, bills, lrs, db, userId, handleDeleteRequest, showAlert, selectedMonth, setSelectedMonth }) { 
     const handleDeleteBill = async (billId, lrIds) => { 
         const batch = db.batch(); 
         const billRef = db.collection('users').doc(userId).collection('bills').doc(billId); 
@@ -382,14 +392,22 @@ function BillingView({ setView, bills, lrs, db, userId, handleDeleteRequest, sho
         }
     };
 
+    const filteredBills = bills.filter(bill => {
+        if (!selectedMonth) return true;
+        return bill.billDate.startsWith(selectedMonth);
+    });
+
     return (
         <div>
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-bold">Billing</h2>
-                <button onClick={() => setView('create_bill')} className="btn-primary flex items-center gap-2"><PlusCircleIcon/>Create Bill</button>
+                 <div className="flex gap-2 items-center">
+                    <Input label="Filter by Month" type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} />
+                    <button onClick={() => setView('create_bill')} className="btn-primary flex items-center gap-2 mt-6"><PlusCircleIcon/>Create Bill</button>
+                </div>
             </div>
             <div className="space-y-3">
-                {bills.map(bill => (
+                {filteredBills.map(bill => (
                     <div key={bill.id} className={`p-4 border rounded-lg transition-shadow hover:shadow-md ${bill.status === 'Paid' ? 'bg-green-50' : 'bg-slate-50'}`}>
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                             <div>
@@ -653,6 +671,9 @@ function App() {
     const [alertInfo, setAlertInfo] = useState(null);
     const [editingParty, setEditingParty] = useState(null);
     const [isPartyModalOpen, setIsPartyModalOpen] = useState(false);
+    const [dataLoaded, setDataLoaded] = useState(false);
+    const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+
 
     const showAlert = useCallback((title, message) => {
         setAlertInfo({ title, message });
@@ -683,6 +704,7 @@ function App() {
             return query.onSnapshot((snapshot) => {
                 const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
                 setter(data);
+                setDataLoaded(true); // Mark data as loaded once we get the first snapshot
             }, (error) => {
                 console.error(`Firestore listener error on ${path}:`, error);
                 showAlert("Database Error", `Failed to load data for ${path}. Please refresh the page.`);
@@ -777,7 +799,7 @@ function App() {
     };
 
     const renderView = () => {
-        const props = { db, userId: user?.uid, setView: handleSetView, lrs, bills, parties, handleDeleteRequest, handleDelete, showAlert, onEditParty: handleOpenPartyModal };
+        const props = { db, userId: user?.uid, setView: handleSetView, lrs, bills, parties, handleDeleteRequest, handleDelete, showAlert, onEditParty: handleOpenPartyModal, selectedMonth, setSelectedMonth };
         switch (view) {
             case 'add_lr': return <LrForm {...props} existingLr={editingLr} />;
             case 'billing': return <BillingView {...props} />;
@@ -788,8 +810,8 @@ function App() {
         }
     };
     
-    if (loading) {
-        return <div className="min-h-screen flex items-center justify-center bg-slate-50"><p className="text-xl font-semibold text-slate-500">Loading...</p></div>;
+    if (loading || !dataLoaded && user) {
+        return <div className="min-h-screen flex items-center justify-center bg-slate-50"><p className="text-xl font-semibold text-slate-500">Loading your data...</p></div>;
     }
 
     if (!user) {
