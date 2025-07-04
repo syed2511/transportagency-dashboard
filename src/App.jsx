@@ -643,9 +643,9 @@ function LoginScreen({ showAlert }) {
 // --- Main App Component ---
 function App() {
     const [view, setView] = useState(() => localStorage.getItem('currentView') || 'lrs');
-    const [lrs, setLrs] = useState([]);
-    const [bills, setBills] = useState([]);
-    const [parties, setParties] = useState([]);
+    const [lrs, setLrs] = useState(() => JSON.parse(localStorage.getItem('lrs')) || []);
+    const [bills, setBills] = useState(() => JSON.parse(localStorage.getItem('bills')) || []);
+    const [parties, setParties] = useState(() => JSON.parse(localStorage.getItem('parties')) || []);
     const [editingLr, setEditingLr] = useState(null);
     const [loading, setLoading] = useState(true);
     const [user, setUser] = useState(null);
@@ -662,6 +662,13 @@ function App() {
         const unsubscribe = auth.onAuthStateChanged((user) => {
             setUser(user);
             setLoading(false);
+            if (!user) {
+                // Clear local cache on logout
+                localStorage.removeItem('lrs');
+                localStorage.removeItem('bills');
+                localStorage.removeItem('parties');
+                localStorage.removeItem('currentView');
+            }
         });
         return () => unsubscribe();
     }, []);
@@ -670,9 +677,18 @@ function App() {
         if (!user) return;
 
         const collections = {
-            lrs: (data) => setLrs(data.sort((a, b) => String(a.lrNumber).localeCompare(String(b.lrNumber), undefined, { numeric: true }))),
-            bills: (data) => setBills(data.sort((a,b) => new Date(b.billDate) - new Date(a.billDate))),
-            parties: setParties
+            lrs: (data) => {
+                setLrs(data);
+                localStorage.setItem('lrs', JSON.stringify(data));
+            },
+            bills: (data) => {
+                setBills(data);
+                localStorage.setItem('bills', JSON.stringify(data));
+            },
+            parties: (data) => {
+                setParties(data);
+                localStorage.setItem('parties', JSON.stringify(data));
+            }
         };
 
         const unsubscribers = Object.entries(collections).map(([path, setter]) => {
@@ -701,7 +717,10 @@ function App() {
         setView('add_lr'); 
     };
     
-    // Restore editing state on refresh
+    useEffect(() => {
+        localStorage.setItem('currentView', view);
+    }, [view]);
+
     useEffect(() => {
         if(lrs.length > 0) {
             const savedLrId = localStorage.getItem('editingLrId');
@@ -765,6 +784,15 @@ function App() {
             showAlert("Save Failed", "Could not save the party details.");
         }
     };
+    
+    const handleLogout = () => {
+        localStorage.removeItem('lrs');
+        localStorage.removeItem('bills');
+        localStorage.removeItem('parties');
+        localStorage.removeItem('currentView');
+        localStorage.removeItem('editingLrId');
+        auth.signOut();
+    };
 
     const renderView = () => {
         const props = { db, userId: user?.uid, setView: handleSetView, lrs, bills, parties, handleDeleteRequest, handleDelete, showAlert, onEditParty: handleOpenPartyModal };
@@ -794,7 +822,7 @@ function App() {
             <div className="container mx-auto p-2 sm:p-4">
                 <header className="bg-white rounded-lg shadow p-4 mb-6 flex justify-between items-center">
                     <div className="flex items-center gap-3"><TruckIcon className="h-8 w-8 text-indigo-600" /><h1 className="text-xl sm:text-2xl font-bold text-slate-800">Transport Dashboard</h1></div>
-                    <button onClick={() => auth.signOut()} className="flex items-center gap-2 text-sm font-semibold text-red-500 hover:text-red-700 transition-colors">
+                    <button onClick={handleLogout} className="flex items-center gap-2 text-sm font-semibold text-red-500 hover:text-red-700 transition-colors">
                         <LogOutIcon className="h-5 w-5"/>
                         Logout
                     </button>
