@@ -18,7 +18,38 @@ const LogOutIcon = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24"
 
 // --- Global Configs & Helpers ---
 const getFinancialYear = () => { const today = new Date(); const currentMonth = today.getMonth(); const currentYear = today.getFullYear(); if (currentMonth >= 3) { return `${currentYear}-${(currentYear + 1).toString().slice(-2)}`; } else { return `${currentYear - 1}-${currentYear.toString().slice(-2)}`; } };
-const numberToWords = (num) => { const a = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen']; const b = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety']; const s = ['', 'thousand', 'lakh', 'crore']; const toWords = (n) => { let str = ""; if (n > 19) { str += b[Math.floor(n / 10)] + " " + a[n % 10]; } else { str += a[n]; } if (str) str += " "; return str; }; if (num === 0) return 'zero'; let n = Math.floor(num); let output = ""; output += toWords(n % 100); n = Math.floor(n / 100); output = toWords(n % 100) + (n % 100 ? "hundred " : "") + output; n = Math.floor(n / 100); for (let i = 1; i < 4; i++) { let chunk = n % 100; if (chunk) { output = toWords(chunk) + s[i] + " " + output; } n = Math.floor(n / 100); } return output.trim().toUpperCase() + " ONLY"; };
+
+// FIXED: Replaced with a more robust number-to-words function for the Indian numbering system.
+const numberToWords = (num) => {
+    if (num === 0) return "ZERO ONLY";
+    const a = ['', 'one ', 'two ', 'three ', 'four ', 'five ', 'six ', 'seven ', 'eight ', 'nine ', 'ten ', 'eleven ', 'twelve ', 'thirteen ', 'fourteen ', 'fifteen ', 'sixteen ', 'seventeen ', 'eighteen ', 'nineteen '];
+    const b = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+    
+    const inWords = (n) => {
+        let str = '';
+        if (n > 19) {
+            str += b[Math.floor(n / 10)] + (n % 10 ? ' ' : '') + a[n % 10];
+        } else {
+            str += a[n];
+        }
+        if (n) str += ' ';
+        return str;
+    };
+
+    let n = Math.floor(num);
+    let str = '';
+    str += inWords(Math.floor(n / 10000000) % 100) + 'crore ';
+    str += inWords(Math.floor(n / 100000) % 100) + 'lakh ';
+    str += inWords(Math.floor(n / 1000) % 100) + 'thousand ';
+    str += inWords(Math.floor(n / 100) % 10) + 'hundred ';
+    if (n > 100 && n % 100) {
+        str += 'and ';
+    }
+    str += inWords(n % 100);
+
+    return str.trim().toUpperCase().replace(/\s+/g, ' ') + " ONLY";
+};
+
 
 const companyConfigs = {
     "GLOBAL LOGISTICS": { header: "GLOBAL LOGISTICS", prefix: "GL", bank: "ICICI BANK", ac: "631505500740", ifsc: "ICIC0006315" },
@@ -684,6 +715,7 @@ function App() {
             setUser(user);
             setLoading(false);
             if (!user) {
+                setDataLoaded(false);
                 localStorage.clear();
             }
         });
@@ -691,7 +723,10 @@ function App() {
     }, []);
 
     useEffect(() => {
-        if (!user) return;
+        if (!user) {
+            setDataLoaded(false);
+            return;
+        }
 
         const collections = {
             lrs: setLrs,
@@ -810,7 +845,7 @@ function App() {
         }
     };
     
-    if (loading || !dataLoaded && user) {
+    if (loading || (!dataLoaded && user)) {
         return <div className="min-h-screen flex items-center justify-center bg-slate-50"><p className="text-xl font-semibold text-slate-500">Loading your data...</p></div>;
     }
 
