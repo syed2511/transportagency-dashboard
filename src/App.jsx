@@ -21,31 +21,39 @@ const getFinancialYear = () => { const today = new Date(); const currentMonth = 
 
 // FIXED: Replaced with a more robust number-to-words function for the Indian numbering system.
 const numberToWords = (num) => {
-    if (num === 0) return "ZERO ONLY";
     const a = ['', 'one ', 'two ', 'three ', 'four ', 'five ', 'six ', 'seven ', 'eight ', 'nine ', 'ten ', 'eleven ', 'twelve ', 'thirteen ', 'fourteen ', 'fifteen ', 'sixteen ', 'seventeen ', 'eighteen ', 'nineteen '];
     const b = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
-    
-    const inWords = (n) => {
+
+    const inWords = (n, s) => {
         let str = '';
         if (n > 19) {
             str += b[Math.floor(n / 10)] + (n % 10 ? ' ' : '') + a[n % 10];
         } else {
             str += a[n];
         }
-        if (n) str += ' ';
+        if (n) {
+            str = str.trim() + ' ' + s + ' ';
+        }
         return str;
     };
 
     let n = Math.floor(num);
+    if (n === 0) return "ZERO ONLY";
+    
     let str = '';
-    str += inWords(Math.floor(n / 10000000) % 100) + 'crore ';
-    str += inWords(Math.floor(n / 100000) % 100) + 'lakh ';
-    str += inWords(Math.floor(n / 1000) % 100) + 'thousand ';
-    str += inWords(Math.floor(n / 100) % 10) + 'hundred ';
-    if (n > 100 && n % 100) {
+    str += inWords(Math.floor(n / 10000000), 'crore');
+    n %= 10000000;
+    str += inWords(Math.floor(n / 100000), 'lakh');
+    n %= 100000;
+    str += inWords(Math.floor(n / 1000), 'thousand');
+    n %= 1000;
+    str += inWords(Math.floor(n / 100), 'hundred');
+    n %= 100;
+
+    if (str && n) {
         str += 'and ';
     }
-    str += inWords(n % 100);
+    str += inWords(n, '');
 
     return str.trim().toUpperCase().replace(/\s+/g, ' ') + " ONLY";
 };
