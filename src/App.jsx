@@ -78,131 +78,149 @@ const numberToWords = (num) => {
 // --- Embedded Stamp Images ---
 const stamps = {
     "GLOBAL_LOGISTICS": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASIAAACACAYAAADdpDAAAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAA9vSURBVHhe7Z1/aBxlHcd/s4pYq1gLqagVbFSpYCFYpSAIsVpQkFhQkIiIKAiCgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoAC-",
-    "SAI_KUMAR_TRANSPORT": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASIAAACACAYAAADdpDAAAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAA9vSURBVHhe7Z1/aBxlHcd/s4pYq1gLqagVbFSpYCFYpSAIsVpQkFhQkIiIKAiCgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoAC-",
-    "SRI_KUMAR_TRANSPORT": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASIAAACACAYAAADdpDAAAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAA9vSURBVHhe7Z1/aBxlHcd/s4pYq1gLqagVbFSpYCFYpSAIsVpQkFhQkIiIKAiCgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoac-",
+    "SAI_KUMAR_TRANSPORT": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASIAAACACAYAAADdpDAAAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAA9vSURBVHhe7Z1/aBxlHcd/s4pYq1gLqagVbFSpYCFYpSAIsVpQkFhQkIiIKAiCgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoAC-",
+    "SRI_KUMAR_TRANSPORT": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASIAAACACAYAAADdpDAAAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAA9vSURBVHhe7Z1/aBxlHcd/s4pYq1gLqagVbFSpYCFYpSAIsVpQkFhQkIiIKAiCgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoACgoAC-",
 };
 
 const companyConfigs = {
-    "GLOBAL LOGISTICS": { header: "GLOBAL LOGISTICS", prefix: "GL", bank: "ICICI BANK", ac: "631505500740", ifsc: "ICIC0006315", stamp: stamps.GLOBAL_AWAITING_REMOVAL },
+    "GLOBAL LOGISTICS": { header: "GLOBAL LOGISTICS", prefix: "GL", bank: "ICICI BANK", ac: "631505500740", ifsc: "ICIC0006315", stamp: stamps.GLOBAL_LOGISTICS },
     "SRI KUMAR TRANSPORT": { header: "SRI KUMAR TRANSPORT", prefix: "SKT", bank: "ICICI BANK", ac: "631505013772", ifsc: "ICIC0006315", stamp: stamps.SRI_KUMAR_TRANSPORT },
     "SAI KUMAR TRANSPORT": { header: "SAI KUMAR TRANSPORT", prefix: "SAI", bank: "BANK OF MAHARASHTRA", ac: "60380956429", ifsc: "MAHB0001126", stamp: stamps.SAI_KUMAR_TRANSPORT }
 };
 
 // --- PDF Generation Functions ---
 const generatePdfForBill = (bill, lrsInBill, showAlert) => { 
-    const doc = new jsPDF();
-    const config = companyConfigs[bill.companyName]; 
-    if (!config) { showAlert("Config Error", `No bill format configured for ${bill.companyName}`); return; } 
-    
-    const party = bill.billTo === 'Consignor' ? lrsInBill[0].consignor : lrsInBill[0].consignee; 
-    doc.setFontSize(22); 
-    doc.setFont("helvetica", "bold"); 
-    doc.text(config.header, 105, 20, { align: "center" }); 
-    doc.setFontSize(10); 
-    doc.setFont("helvetica", "normal"); 
-    doc.text("TRANSPORT COMMISSION AGENTS", 105, 26, { align: "center" }); 
-    doc.line(14, 28, 196, 28); 
-    doc.setFontSize(10); 
-    doc.setFont("helvetica", "bold"); 
-    doc.text(`BILL NO. ${config.prefix}/${bill.billNumber}/${getFinancialYear()}`, 14, 35); 
-    doc.text(`RAJAHMUNDRY`, 196, 35, { align: "right" }); 
-    doc.setFont("helvetica", "normal"); 
-    doc.text(`DT: ${new Date(bill.billDate).toLocaleDateString("en-GB")}`, 196, 40, { align: "right" }); 
-    let y = 48; doc.text("TO", 14, y); 
-    y += 6; 
-    doc.setFont("helvetica", "bold"); 
-    doc.text(party.name, 14, y); 
-    y += 6; 
-    doc.setFont("helvetica", "normal"); 
-    doc.text(party.address || "N/A", 14, y); 
-    if (party.gstin) { y += 6; doc.setFont("helvetica", "bold"); doc.text(`GSTIN: ${party.gstin}`, 14, y); } 
-    y += 10; 
-    doc.text("SUB: Regd - Transportation Bill.", 14, y); 
-    const tableBody = lrsInBill.map((lr, index) => {
-        const truckNumbers = (lr.truckDetails.truckNumbers || [lr.truckDetails.truckNumber]).filter(Boolean).join(', ');
-        return [lr.lrNumber, new Date(lr.bookingDate).toLocaleDateString("en-GB"), lr.loadingDetails.loadingPoint, lr.loadingDetails.unloadingPoint, lr.loadingDetails.weight, index === 0 ? `₹${bill.totalAmount.toFixed(2)}` : 'DO', index === 0 ? `₹${bill.totalAmount.toFixed(2)}` : 'DO', truckNumbers];
-    }); 
-    autoTable(doc, { startY: y + 5, head: [['LR NO', 'DATE', 'FROM', 'TO', 'WEIGHT', 'RATE', 'FREIGHT', 'TRUCK NO']], body: tableBody, theme: 'grid' }); 
-    let finalY = doc.lastAutoTable.finalY; 
-    doc.setFont("helvetica", "bold"); 
-    doc.text("TOTAL", 128, finalY + 7); 
-    doc.text(`₹${bill.totalAmount.toFixed(2)}`, 196, finalY + 7, { align: "right" }); 
-    doc.text(`Total Rupees ${numberToWords(bill.totalAmount)}`, 14, finalY + 15); 
-    finalY += 30; 
-    doc.setFont("helvetica", "bold"); 
-    doc.text("OUR BANK DETAILS:", 14, finalY); 
-    doc.setFont("helvetica", "normal"); 
-    doc.text(config.bank, 14, finalY + 5); 
-    doc.text(config.header, 14, finalY + 10); 
-    doc.text(`ACCOUNT NO. ${config.ac}`, 14, finalY + 15); 
-    doc.text(`IFSC CODE: ${config.ifsc}`, 14, finalY + 20); 
-    doc.text('T NAGAR, RAJAHMUNDRY', 14, finalY + 25); 
-
-    if (config.stamp) {
-        const imgWidth = 50;
-        const imgHeight = 25;
-        const xPos = 196 - imgWidth;
-        const yPos = finalY + 10;
-        doc.addImage(config.stamp, 'PNG', xPos, yPos, imgWidth, imgHeight);
-    } else {
+    try {
+        const doc = new jsPDF();
+        const config = companyConfigs[bill.companyName]; 
+        if (!config) { showAlert("Config Error", `No bill format configured for ${bill.companyName}`); return; } 
+        
+        const party = bill.billTo === 'Consignor' ? lrsInBill[0].consignor : lrsInBill[0].consignee; 
+        doc.setFontSize(22); 
         doc.setFont("helvetica", "bold"); 
-        doc.text(`For ${config.header}`, 196, finalY + 30, { align: "right" }); 
-        doc.text("Proprietor", 196, finalY + 45, { align: "right" }); 
+        doc.text(config.header, 105, 20, { align: "center" }); 
+        doc.setFontSize(10); 
+        doc.setFont("helvetica", "normal"); 
+        doc.text("TRANSPORT COMMISSION AGENTS", 105, 26, { align: "center" }); 
+        doc.line(14, 28, 196, 28); 
+        doc.setFontSize(10); 
+        doc.setFont("helvetica", "bold"); 
+        doc.text(`BILL NO. ${config.prefix}/${bill.billNumber}/${getFinancialYear()}`, 14, 35); 
+        doc.text(`RAJAHMUNDRY`, 196, 35, { align: "right" }); 
+        doc.setFont("helvetica", "normal"); 
+        doc.text(`DT: ${new Date(bill.billDate).toLocaleDateString("en-GB")}`, 196, 40, { align: "right" }); 
+        let y = 48; doc.text("TO", 14, y); 
+        y += 6; 
+        doc.setFont("helvetica", "bold"); 
+        doc.text(party.name, 14, y); 
+        y += 6; 
+        doc.setFont("helvetica", "normal"); 
+        doc.text(party.address || "N/A", 14, y); 
+        if (party.gstin) { y += 6; doc.setFont("helvetica", "bold"); doc.text(`GSTIN: ${party.gstin}`, 14, y); } 
+        y += 10; 
+        doc.text("SUB: Regd - Transportation Bill.", 14, y); 
+        const tableBody = lrsInBill.map((lr, index) => {
+            const truckNumbers = (lr.truckDetails?.truckNumbers || [lr.truckDetails?.truckNumber]).filter(Boolean).join(', ');
+            return [lr.lrNumber || '', new Date(lr.bookingDate).toLocaleDateString("en-GB"), lr.loadingDetails?.loadingPoint || '', lr.loadingDetails?.unloadingPoint || '', lr.loadingDetails?.weight || '', index === 0 ? `₹${bill.totalAmount.toFixed(2)}` : 'DO', index === 0 ? `₹${bill.totalAmount.toFixed(2)}` : 'DO', truckNumbers || 'N/A'];
+        }); 
+        autoTable(doc, { 
+            startY: y + 5, 
+            head: [['LR NO', 'DATE', 'FROM', 'TO', 'WEIGHT', 'RATE', 'FREIGHT', 'TRUCK NO']], 
+            body: tableBody, 
+            theme: 'grid',
+            didDrawPage: function (data) {
+                let finalY = data.cursor.y;
+                doc.setFont("helvetica", "bold"); 
+                doc.text("TOTAL", 128, finalY + 7); 
+                doc.text(`₹${bill.totalAmount.toFixed(2)}`, 196, finalY + 7, { align: "right" }); 
+                doc.text(`Total Rupees ${numberToWords(bill.totalAmount)}`, 14, finalY + 15); 
+                finalY += 30; 
+                doc.setFont("helvetica", "bold"); 
+                doc.text("OUR BANK DETAILS:", 14, finalY); 
+                doc.setFont("helvetica", "normal"); 
+                doc.text(config.bank, 14, finalY + 5); 
+                doc.text(config.header, 14, finalY + 10); 
+                doc.text(`ACCOUNT NO. ${config.ac}`, 14, finalY + 15); 
+                doc.text(`IFSC CODE: ${config.ifsc}`, 14, finalY + 20); 
+                doc.text('T NAGAR, RAJAHMUNDRY', 14, finalY + 25); 
+
+                if (config.stamp) {
+                    const imgWidth = 50;
+                    const imgHeight = 25;
+                    const xPos = 196 - imgWidth;
+                    const yPos = finalY + 10;
+                    doc.addImage(config.stamp, 'PNG', xPos, yPos, imgWidth, imgHeight);
+                } else {
+                    doc.setFont("helvetica", "bold"); 
+                    doc.text(`For ${config.header}`, 196, finalY + 30, { align: "right" }); 
+                    doc.text("Proprietor", 196, finalY + 45, { align: "right" }); 
+                }
+            }
+        }); 
+        doc.save(`Bill-${bill.billNumber}.pdf`); 
+    } catch (error) {
+        console.error("Failed to generate PDF:", error);
+        showAlert("Download Failed", "An error occurred while generating the PDF. Please check the console for details.");
     }
-    
-    doc.save(`Bill-${bill.billNumber}.pdf`); 
 };
 
 const generateDueStatementPDF = (party, bills, lrs, showAlert) => { 
-    const doc = new jsPDF();
-    const config = companyConfigs[party.companyName] || { header: party.companyName };
-    doc.setFontSize(18); 
-    doc.setFont('helvetica', 'bold'); 
-    doc.text(config.header, 105, 15, { align: 'center' });
-    doc.setFontSize(14);
-    doc.text('STATEMENT OF ACCOUNT', 105, 22, { align: 'center' });
-    doc.setFontSize(10); 
-    doc.setFont('helvetica', 'normal'); 
-    doc.text(`Date: ${new Date().toLocaleDateString('en-GB')}`, 196, 30, { align: 'right' }); 
-    let y = 40; 
-    doc.setFontSize(12); 
-    doc.text('To:', 14, y); 
-    y += 6; 
-    doc.setFont('helvetica', 'bold'); 
-    doc.text(party.name, 14, y); 
-    y += 6; 
-    doc.setFont('helvetica', 'normal'); 
-    doc.text(party.address || "N/A", 14, y); 
-    const tableBody = bills.map(bill => { 
-        const firstLr = lrs.find(lr => lr.id === bill.lrIds[0]);
-        const truckNumbers = bill.lrIds
-            .flatMap(lrId => {
-                const lr = lrs.find(l => l.id === lrId);
-                return lr?.truckDetails?.truckNumbers || (lr?.truckDetails?.truckNumber ? [lr.truckDetails.truckNumber] : []);
-            })
-            .filter(Boolean)
-            .join(', ');
-        return [ 
-            new Date(bill.billDate).toLocaleDateString('en-GB'), 
-            bill.billNumber, 
-            firstLr?.loadingDetails.unloadingPoint || '',
-            truckNumbers || 'N/A',
-            `₹${bill.totalAmount.toFixed(2)}` 
-        ];
-    }); 
-    autoTable(doc, { 
-        startY: y + 10, 
-        head: [['BILL DATE', 'BILL NO.', 'DESTINATION', 'TRUCK NO(S)', 'AMOUNT']], 
-        body: tableBody, 
-        theme: 'grid' 
-    }); 
-    let finalY = doc.lastAutoTable.finalY; 
-    const totalDue = bills.reduce((sum, bill) => sum + bill.totalAmount, 0); 
-    doc.setFontSize(12); 
-    doc.setFont('helvetica', 'bold'); 
-    doc.text('Total Due:', 140, finalY + 10, { align: 'right' }); 
-    doc.text(`₹${totalDue.toFixed(2)}`, 196, finalY + 10, { align: 'right' }); 
-    doc.save(`Due-Statement-${party.name}-${party.companyName}.pdf`); 
+    try {
+        const doc = new jsPDF();
+        const config = companyConfigs[party.companyName] || { header: party.companyName };
+        doc.setFontSize(18); 
+        doc.setFont('helvetica', 'bold'); 
+        doc.text(config.header, 105, 15, { align: 'center' });
+        doc.setFontSize(14);
+        doc.text('STATEMENT OF ACCOUNT', 105, 22, { align: 'center' });
+        doc.setFontSize(10); 
+        doc.setFont('helvetica', 'normal'); 
+        doc.text(`Date: ${new Date().toLocaleDateString('en-GB')}`, 196, 30, { align: 'right' }); 
+        let y = 40; 
+        doc.setFontSize(12); 
+        doc.text('To:', 14, y); 
+        y += 6; 
+        doc.setFont('helvetica', 'bold'); 
+        doc.text(party.name, 14, y); 
+        y += 6; 
+        doc.setFont('helvetica', 'normal'); 
+        doc.text(party.address || "N/A", 14, y); 
+        const tableBody = bills.map(bill => { 
+            const firstLr = lrs.find(lr => lr.id === bill.lrIds[0]);
+            const truckNumbers = bill.lrIds
+                .flatMap(lrId => {
+                    const lr = lrs.find(l => l.id === lrId);
+                    return lr?.truckDetails?.truckNumbers || (lr?.truckDetails?.truckNumber ? [lr.truckDetails.truckNumber] : []);
+                })
+                .filter(Boolean)
+                .join(', ');
+            return [ 
+                new Date(bill.billDate).toLocaleDateString('en-GB'), 
+                bill.billNumber, 
+                firstLr?.loadingDetails.unloadingPoint || '',
+                truckNumbers || 'N/A',
+                `₹${bill.totalAmount.toFixed(2)}` 
+            ];
+        }); 
+        autoTable(doc, { 
+            startY: y + 10, 
+            head: [['BILL DATE', 'BILL NO.', 'DESTINATION', 'TRUCK NO(S)', 'AMOUNT']], 
+            body: tableBody, 
+            theme: 'grid',
+            didDrawPage: function(data) {
+                let finalY = data.cursor.y;
+                const totalDue = bills.reduce((sum, bill) => sum + bill.totalAmount, 0); 
+                doc.setFontSize(12); 
+                doc.setFont('helvetica', 'bold'); 
+                doc.text('Total Due:', 140, finalY + 10, { align: 'right' }); 
+                doc.text(`₹${totalDue.toFixed(2)}`, 196, finalY + 10, { align: 'right' }); 
+            }
+        }); 
+        doc.save(`Due-Statement-${party.name}-${party.companyName}.pdf`); 
+    } catch (error) {
+        console.error("Failed to generate Statement PDF:", error);
+        showAlert("Download Failed", "An error occurred while generating the Statement PDF. Please check the console for details.");
+    }
 };
 
 
