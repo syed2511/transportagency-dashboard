@@ -136,10 +136,15 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
                 doc.text(`ACCOUNT NO. ${config.ac}`, 14, finalY + 15); 
                 doc.text(`IFSC CODE: ${config.ifsc}`, 14, finalY + 20); 
                 doc.text('T NAGAR, RAJAHMUNDRY', 14, finalY + 25); 
-
+                
+                // FIXED: Replaced stamp with text
                 doc.setFont("helvetica", "bold"); 
                 doc.text(`For ${config.header}`, 196, finalY + 30, { align: "right" }); 
-                doc.text("Proprietor", 196, finalY + 45, { align: "right" }); 
+
+                const pageHeight = doc.internal.pageSize.getHeight();
+                doc.setFontSize(9);
+                doc.setFont("helvetica", "italic");
+                doc.text("*THIS IS COMPUTER GENERATED. NO SIGNATURE REQUIRED.", 105, pageHeight - 10, { align: "center" });
             }
         }); 
         doc.save(`Bill-${bill.billNumber}.pdf`); 
