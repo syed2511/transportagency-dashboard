@@ -75,10 +75,10 @@ const numberToWords = (num) => {
     return str.trim().toUpperCase().replace(/\s+/g, ' ') + " ONLY";
 };
 
-// --- Currency Formatter ---
 const formatIndianCurrency = (num) => {
     if (typeof num !== 'number') return num;
-    return `₹ ${Math.round(num).toLocaleString('en-IN')}`;
+    const roundedNum = Math.round(num);
+    return `₹ ${roundedNum.toLocaleString('en-IN')}`;
 };
 
 const companyConfigs = {
@@ -678,7 +678,7 @@ function StatementView({ bills, lrs, parties, showAlert }) {
                                 <p className="font-bold text-slate-800">{statementGroup.partyName}</p>
                                 <p className="text-sm text-indigo-600 font-semibold">{statementGroup.companyName}</p>
                                 <p className="text-sm text-slate-600 mt-1">
-                                    Total Due: ₹{statementGroup.bills.reduce((sum, b) => sum + b.totalAmount, 0).toFixed(2)}
+                                    Total Due: ₹{bills.reduce((sum, b) => sum + b.totalAmount, 0).toLocaleString('en-IN')}
                                 </p>
                             </div>
                             <button
