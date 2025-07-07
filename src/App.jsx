@@ -75,6 +75,12 @@ const numberToWords = (num) => {
     return str.trim().toUpperCase().replace(/\s+/g, ' ') + " ONLY";
 };
 
+// --- Currency Formatter ---
+const formatIndianCurrency = (num) => {
+    if (typeof num !== 'number') return num;
+    return `₹ ${Math.round(num).toLocaleString('en-IN')}`;
+};
+
 const companyConfigs = {
     "GLOBAL LOGISTICS": { header: "GLOBAL LOGISTICS", prefix: "GL", bank: "ICICI BANK", ac: "631505500740", ifsc: "ICIC0006315" },
     "SRI KUMAR TRANSPORT": { header: "SRI KUMAR TRANSPORT", prefix: "SKT", bank: "ICICI BANK", ac: "631505013772", ifsc: "ICIC0006315" },
@@ -114,18 +120,32 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
         doc.text("SUB: Regd - Transportation Bill.", 14, y); 
         const tableBody = lrsInBill.map((lr, index) => {
             const truckNumbers = (lr.truckDetails?.truckNumbers || [lr.truckDetails?.truckNumber]).filter(Boolean).join(', ');
-            return [lr.lrNumber || '', new Date(lr.bookingDate).toLocaleDateString("en-GB"), lr.loadingDetails?.loadingPoint || '', lr.loadingDetails?.unloadingPoint || '', lr.loadingDetails?.weight || '', index === 0 ? `₹${bill.totalAmount.toFixed(2)}` : 'DO', index === 0 ? `₹${bill.totalAmount.toFixed(2)}` : 'DO', truckNumbers || 'N/A'];
+            return [
+                lr.lrNumber || '', 
+                new Date(lr.bookingDate).toLocaleDateString("en-GB"), 
+                lr.loadingDetails?.loadingPoint || '', 
+                lr.loadingDetails?.unloadingPoint || '', 
+                lr.loadingDetails?.weight || '', 
+                index === 0 ? formatIndianCurrency(bill.totalAmount) : 'DO', 
+                index === 0 ? formatIndianCurrency(bill.totalAmount) : 'DO', 
+                truckNumbers || 'N/A'
+            ];
         }); 
+        
         autoTable(doc, { 
             startY: y + 5, 
             head: [['LR NO', 'DATE', 'FROM', 'TO', 'WEIGHT', 'RATE', 'FREIGHT', 'TRUCK NO']], 
             body: tableBody, 
             theme: 'grid',
+            columnStyles: {
+                5: { halign: 'right', fontStyle: 'bold' }, // Rate column
+                6: { halign: 'right', fontStyle: 'bold' }  // Freight column
+            },
             didDrawPage: function (data) {
                 let finalY = data.cursor.y;
                 doc.setFont("helvetica", "bold"); 
                 doc.text("TOTAL", 128, finalY + 7); 
-                doc.text(`₹${bill.totalAmount.toFixed(2)}`, 196, finalY + 7, { align: "right" }); 
+                doc.text(formatIndianCurrency(bill.totalAmount), 196, finalY + 7, { align: "right" }); 
                 doc.text(`Total Rupees ${numberToWords(bill.totalAmount)}`, 14, finalY + 15); 
                 finalY += 30; 
                 doc.setFont("helvetica", "bold"); 
@@ -137,7 +157,6 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
                 doc.text(`IFSC CODE: ${config.ifsc}`, 14, finalY + 20); 
                 doc.text('T NAGAR, RAJAHMUNDRY', 14, finalY + 25); 
                 
-                // FIXED: Replaced stamp with text
                 doc.setFont("helvetica", "bold"); 
                 doc.text(`For ${config.header}`, 196, finalY + 30, { align: "right" }); 
 
@@ -189,7 +208,7 @@ const generateDueStatementPDF = (party, bills, lrs, showAlert) => {
                 bill.billNumber, 
                 firstLr?.loadingDetails.unloadingPoint || '',
                 truckNumbers || 'N/A',
-                `₹${bill.totalAmount.toFixed(2)}` 
+                formatIndianCurrency(bill.totalAmount) 
             ];
         }); 
         autoTable(doc, { 
@@ -197,13 +216,16 @@ const generateDueStatementPDF = (party, bills, lrs, showAlert) => {
             head: [['BILL DATE', 'BILL NO.', 'DESTINATION', 'TRUCK NO(S)', 'AMOUNT']], 
             body: tableBody, 
             theme: 'grid',
+            columnStyles: {
+                4: { halign: 'right', fontStyle: 'bold' }
+            },
             didDrawPage: function(data) {
                 let finalY = data.cursor.y;
                 const totalDue = bills.reduce((sum, bill) => sum + bill.totalAmount, 0); 
                 doc.setFontSize(12); 
                 doc.setFont('helvetica', 'bold'); 
                 doc.text('Total Due:', 140, finalY + 10, { align: 'right' }); 
-                doc.text(`₹${totalDue.toFixed(2)}`, 196, finalY + 10, { align: 'right' }); 
+                doc.text(formatIndianCurrency(totalDue), 196, finalY + 10, { align: 'right' }); 
             }
         }); 
         doc.save(`Due-Statement-${party.name}-${party.companyName}.pdf`); 
