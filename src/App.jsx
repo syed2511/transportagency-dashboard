@@ -107,11 +107,14 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
         y += 10;
         doc.text("SUB: Regd - Transportation Bill.", 14, y);
 
+        // --- FINAL FIX for Number and Column issues ---
         const tableBody = lrsInBill.map(lr => {
             const truckNumbers = (lr.truckDetails?.truckNumbers || [lr.truckDetails?.truckNumber]).filter(Boolean).join(', ');
-            // FIX: Force the amount to be a number before formatting.
-            const freightAmount = Number(lr.billDetails?.amount) || 0;
-            const displayAmount = `₹${freightAmount.toFixed(2)}`;
+            
+            // Use the bill's totalAmount, which is correct, for the line item.
+            // This handles the case where the bill has one LR.
+            const displayAmount = `₹${(Number(bill.totalAmount) || 0).toFixed(2)}`;
+            
             return [
                 lr.lrNumber || '',
                 new Date(lr.bookingDate).toLocaleDateString("en-GB"),
@@ -129,23 +132,23 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
             head: [['LR NO', 'DATE', 'FROM', 'TO', 'WEIGHT', 'RATE', 'FREIGHT', 'TRUCK NO']],
             body: tableBody,
             theme: 'grid',
-            // --- FIX: Increased column widths to prevent text wrapping ---
+            // Define widths for ALL columns to prevent wrapping
             columnStyles: {
-                0: { cellWidth: 15 },        // LR NO
-                1: { cellWidth: 22 },        // DATE
-                2: { cellWidth: 30 },        // FROM
-                3: { cellWidth: 30 },        // TO
-                4: { cellWidth: 18, halign: 'right' }, // WEIGHT
-                5: { cellWidth: 25, halign: 'right' }, // RATE
-                6: { cellWidth: 25, halign: 'right' }, // FREIGHT
-                7: { cellWidth: 'auto' }     // TRUCK NO
+                0: { cellWidth: 15 },
+                1: { cellWidth: 21 },
+                2: { cellWidth: 28 },
+                3: { cellWidth: 28 },
+                4: { cellWidth: 18, halign: 'center' },
+                5: { cellWidth: 24, halign: 'center' },
+                6: { cellWidth: 24, halign: 'center' },
+                7: { cellWidth: 24, halign: 'center' }
             },
             foot: [
                 ['', '', '', '', '', 'TOTAL', `₹${(Number(bill.totalAmount) || 0).toFixed(2)}`, '']
             ],
             footStyles: {
                 fontStyle: 'bold',
-                halign: 'right'
+                halign: 'center'
             },
             didDrawPage: function (data) {
                 let finalY = data.cursor.y;
@@ -177,8 +180,7 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
         console.error("Failed to generate PDF:", error);
         showAlert("Download Failed", "An error occurred while generating the PDF. Please check the console for details.");
     }
-};
-															
+};													
 const generateDueStatementPDF = (party, bills, lrs, showAlert) => {															
 try {															
 const doc = new jsPDF();															
