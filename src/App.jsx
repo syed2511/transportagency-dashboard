@@ -107,10 +107,14 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
         y += 10;
         doc.text("SUB: Regd - Transportation Bill.", 14, y);
 
+        // --- FIX #1: Format numbers with Indian commas ---
         const tableBody = lrsInBill.map(lr => {
             const truckNumbers = (lr.truckDetails?.truckNumbers || [lr.truckDetails?.truckNumber]).filter(Boolean).join(', ');
-            // *** TEST: Remove currency symbol to isolate the bug ***
-            const displayAmount = `${(Number(bill.totalAmount) || 0).toFixed(2)}`;
+            const amount = Number(bill.totalAmount) || 0;
+            const displayAmount = amount.toLocaleString('en-IN', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
             
             return [
                 lr.lrNumber || '',
@@ -124,29 +128,35 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
             ];
         });
 
+        // Format the total amount for the footer
+        const totalAmount = Number(bill.totalAmount) || 0;
+        const displayTotal = totalAmount.toLocaleString('en-IN', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+
         autoTable(doc, {
             startY: y + 5,
-            head: [['LR NO', 'DATE', 'FROM', 'TO', 'WEIGHT', 'RATE', 'FREIGHT', 'TRUCK NO']],
+            head: [['LR NO', 'DATE', 'FROM', 'TO', 'WEIGHT', 'RATE (₹)', 'FREIGHT (₹)', 'TRUCK NO']],
             body: tableBody,
             theme: 'grid',
+            // --- FIX #2: Center-align all table content ---
+            headStyles: { halign: 'center', fontStyle: 'bold' },
+            styles: { halign: 'center' },
+            footStyles: { halign: 'center', fontStyle: 'bold' },
             columnStyles: {
                 0: { cellWidth: 15 },
-                1: { cellWidth: 21 },
+                1: { cellWidth: 22 },
                 2: { cellWidth: 28 },
                 3: { cellWidth: 28 },
-                4: { cellWidth: 18, halign: 'right' },
-                5: { cellWidth: 28, halign: 'right' },
-                6: { cellWidth: 28, halign: 'right' },
-                7: { cellWidth: 28, halign: 'center' }
+                4: { cellWidth: 19 },
+                5: { cellWidth: 26 },
+                6: { cellWidth: 26 },
+                7: { cellWidth: 26 }
             },
             foot: [
-                // *** TEST: Remove currency symbol from footer ***
-                ['', '', '', '', '', 'TOTAL', `${(Number(bill.totalAmount) || 0).toFixed(2)}`, '']
+                ['', '', '', '', '', 'TOTAL', displayTotal, '']
             ],
-            footStyles: {
-                fontStyle: 'bold',
-                halign: 'right'
-            },
             didDrawPage: function (data) {
                 let finalY = data.cursor.y;
                 doc.setFont("helvetica", "bold");
@@ -177,7 +187,7 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
         console.error("Failed to generate PDF:", error);
         showAlert("Download Failed", "An error occurred while generating the PDF. Please check the console for details.");
     }
-};			
+};
 const generateDueStatementPDF = (party, bills, lrs, showAlert) => {															
 try {															
 const doc = new jsPDF();															
