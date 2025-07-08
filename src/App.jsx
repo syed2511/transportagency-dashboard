@@ -75,74 +75,102 @@ const companyConfigs = {
 };															
 															
 // --- PDF Generation Functions ---															
-const generatePdfForBill = (bill, lrsInBill, showAlert) => {															
-try {															
-const doc = new jsPDF();															
-const config = companyConfigs[bill.companyName];															
-if (!config) { showAlert("Config Error", `No bill format configured for ${bill.companyName}`); return; }															
-const party = bill.billTo === 'Consignor' ? lrsInBill[0].consignor : lrsInBill[0].consignee;															
-doc.setFontSize(22);															
-doc.setFont("helvetica", "bold");															
-doc.text(config.header, 105, 20, { align: "center" });															
-doc.setFontSize(10);															
-doc.setFont("helvetica", "normal");															
-doc.text("TRANSPORT COMMISSION AGENTS", 105, 26, { align: "center" });															
-doc.line(14, 28, 196, 28);															
-doc.setFontSize(10);															
-doc.setFont("helvetica", "bold");															
-doc.text(`BILL NO. ${config.prefix}/${bill.billNumber}/${getFinancialYear()}`, 14, 35);															
-doc.text(`RAJAHMUNDRY`, 196, 35, { align: "right" });															
-doc.setFont("helvetica", "normal");															
-doc.text(`DT: ${new Date(bill.billDate).toLocaleDateString("en-GB")}`, 196, 40, { align: "right" });															
-let y = 48; doc.text("TO", 14, y);															
-y += 6;															
-doc.setFont("helvetica", "bold");															
-doc.text(party.name, 14, y);															
-y += 6;															
-doc.setFont("helvetica", "normal");															
-doc.text(party.address || "N/A", 14, y);															
-if (party.gstin) { y += 6; doc.setFont("helvetica", "bold"); doc.text(`GSTIN: ${party.gstin}`, 14, y); }															
-y += 10;															
-doc.text("SUB: Regd - Transportation Bill.", 14, y);															
-const tableBody = lrsInBill.map((lr, index) => {															
-const truckNumbers = (lr.truckDetails?.truckNumbers || [lr.truckDetails?.truckNumber]).filter(Boolean).join(', ');															
-return [lr.lrNumber || '', new Date(lr.bookingDate).toLocaleDateString("en-GB"), lr.loadingDetails?.loadingPoint || '', lr.loadingDetails?.unloadingPoint || '', lr.loadingDetails?.weight || '', index === 0 ? `₹${bill.totalAmount.toFixed(2)}` : 'DO', index === 0 ? `₹${bill.totalAmount.toFixed(2)}` : 'DO', truckNumbers || 'N/A'];															
-});															
-autoTable(doc, {															
-startY: y + 5,															
-head: [['LR NO', 'DATE', 'FROM', 'TO', 'WEIGHT', 'RATE', 'FREIGHT', 'TRUCK NO']],															
-body: tableBody,															
-theme: 'grid',															
-didDrawPage: function (data) {															
-let finalY = data.cursor.y;															
-doc.setFont("helvetica", "bold");															
-doc.text("TOTAL", 128, finalY + 7);															
-doc.text(`₹${bill.totalAmount.toFixed(2)}`, 196, finalY + 7, { align: "right" });															
-doc.text(`Total Rupees ${numberToWords(bill.totalAmount)}`, 14, finalY + 15);															
-finalY += 30;															
-doc.setFont("helvetica", "bold");															
-doc.text("OUR BANK DETAILS:", 14, finalY);															
-doc.setFont("helvetica", "normal");															
-doc.text(config.bank, 14, finalY + 5);															
-doc.text(config.header, 14, finalY + 10);															
-doc.text(`ACCOUNT NO. ${config.ac}`, 14, finalY + 15);															
-doc.text(`IFSC CODE: ${config.ifsc}`, 14, finalY + 20);															
-doc.text('T NAGAR, RAJAHMUNDRY', 14, finalY + 25);															
-// FIXED: Replaced stamp with text															
-doc.setFont("helvetica", "bold");															
-doc.text(`For ${config.header}`, 196, finalY + 30, { align: "right" });															
-															
-const pageHeight = doc.internal.pageSize.getHeight();															
-doc.setFontSize(9);															
-doc.setFont("helvetica", "italic");															
-doc.text("*THIS IS COMPUTER GENERATED. NO SIGNATURE REQUIRED.", 105, pageHeight - 10, { align: "center" });															
-}															
-});															
-doc.save(`Bill-${bill.billNumber}.pdf`);															
-} catch (error) {															
-console.error("Failed to generate PDF:", error);															
-showAlert("Download Failed", "An error occurred while generating the PDF. Please check the console for details.");															
-}															
+const generatePdfForBill = (bill, lrsInBill, showAlert) => {
+    try {
+        const doc = new jsPDF();
+        const config = companyConfigs[bill.companyName];
+        if (!config) { showAlert("Config Error", `No bill format configured for ${bill.companyName}`); return; }
+        const party = bill.billTo === 'Consignor' ? lrsInBill[0].consignor : lrsInBill[0].consignee;
+
+        // --- Header Section (No changes here) ---
+        doc.setFontSize(22);
+        doc.setFont("helvetica", "bold");
+        doc.text(config.header, 105, 20, { align: "center" });
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.text("TRANSPORT COMMISSION AGENTS", 105, 26, { align: "center" });
+        doc.line(14, 28, 196, 28);
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.text(`BILL NO. ${config.prefix}/${bill.billNumber}/${getFinancialYear()}`, 14, 35);
+        doc.text(`RAJAHMUNDRY`, 196, 35, { align: "right" });
+        doc.setFont("helvetica", "normal");
+        doc.text(`DT: ${new Date(bill.billDate).toLocaleDateString("en-GB")}`, 196, 40, { align: "right" });
+        let y = 48; doc.text("TO", 14, y);
+        y += 6;
+        doc.setFont("helvetica", "bold");
+        doc.text(party.name, 14, y);
+        y += 6;
+        doc.setFont("helvetica", "normal");
+        doc.text(party.address || "N/A", 14, y);
+        if (party.gstin) { y += 6; doc.setFont("helvetica", "bold"); doc.text(`GSTIN: ${party.gstin}`, 14, y); }
+        y += 10;
+        doc.text("SUB: Regd - Transportation Bill.", 14, y);
+
+        // --- FIX #1: Correctly show freight for each LR ---
+        const tableBody = lrsInBill.map(lr => {
+            const truckNumbers = (lr.truckDetails?.truckNumbers || [lr.truckDetails?.truckNumber]).filter(Boolean).join(', ');
+            return [
+                lr.lrNumber || '',
+                new Date(lr.bookingDate).toLocaleDateString("en-GB"),
+                lr.loadingDetails?.loadingPoint || '',
+                lr.loadingDetails?.unloadingPoint || '',
+                lr.loadingDetails?.weight || '',
+                'N/A', // Rate column
+                `₹${(parseFloat(lr.billDetails?.amount) || 0).toFixed(2)}`, // Freight column for each LR
+                truckNumbers || 'N/A'
+            ];
+        });
+
+        autoTable(doc, {
+            startY: y + 5,
+            head: [['LR NO', 'DATE', 'FROM', 'TO', 'WEIGHT', 'RATE', 'FREIGHT', 'TRUCK NO']],
+            body: tableBody,
+            theme: 'grid',
+
+            // --- FIX #2: Add a proper table footer for the total amount ---
+            foot: [
+                ['', '', '', '', '', 'TOTAL', `₹${bill.totalAmount.toFixed(2)}`, '']
+            ],
+            footStyles: {
+                fontStyle: 'bold',
+                halign: 'right' // Right-aligns the text in the footer cells
+            },
+
+            didDrawPage: function (data) {
+                // The cursor's Y position is now after the table and its new footer
+                let finalY = data.cursor.y;
+
+                // The old manual total text is removed, as it's now in the footer.
+                
+                doc.setFont("helvetica", "bold");
+                doc.text(`Total Rupees ${numberToWords(bill.totalAmount)}`, 14, finalY + 15);
+
+                finalY += 30;
+                doc.setFont("helvetica", "bold");
+                doc.text("OUR BANK DETAILS:", 14, finalY);
+                doc.setFont("helvetica", "normal");
+                doc.text(config.bank, 14, finalY + 5);
+                doc.text(config.header, 14, finalY + 10);
+                doc.text(`ACCOUNT NO. ${config.ac}`, 14, finalY + 15);
+                doc.text(`IFSC CODE: ${config.ifsc}`, 14, finalY + 20);
+                doc.text('T NAGAR, RAJAHMUNDRY', 14, finalY + 25);
+                
+                doc.setFont("helvetica", "bold");
+                doc.text(`For ${config.header}`, 196, finalY + 30, { align: "right" });
+
+                const pageHeight = doc.internal.pageSize.getHeight();
+                doc.setFontSize(9);
+                doc.setFont("helvetica", "italic");
+                doc.text("*THIS IS COMPUTER GENERATED. NO SIGNATURE REQUIRED.", 105, pageHeight - 10, { align: "center" });
+            }
+        });
+
+        doc.save(`Bill-${bill.billNumber}.pdf`);
+    } catch (error) {
+        console.error("Failed to generate PDF:", error);
+        showAlert("Download Failed", "An error occurred while generating the PDF. Please check the console for details.");
+    }
 };															
 															
 const generateDueStatementPDF = (party, bills, lrs, showAlert) => {															
