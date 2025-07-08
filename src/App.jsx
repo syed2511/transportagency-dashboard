@@ -106,19 +106,20 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
         if (party.gstin) { y += 6; doc.setFont("helvetica", "bold"); doc.text(`GSTIN: ${party.gstin}`, 14, y); }
         y += 10;
         doc.text("SUB: Regd - Transportation Bill.", 14, y);
-        
-        // Restore previous fix for Rate/Freight columns but use toFixed(2)
+
         const tableBody = lrsInBill.map(lr => {
             const truckNumbers = (lr.truckDetails?.truckNumbers || [lr.truckDetails?.truckNumber]).filter(Boolean).join(', ');
-            const freightAmount = `₹${(parseFloat(lr.billDetails?.amount) || 0).toFixed(2)}`;
+            // FIX: Force the amount to be a number before formatting.
+            const freightAmount = Number(lr.billDetails?.amount) || 0;
+            const displayAmount = `₹${freightAmount.toFixed(2)}`;
             return [
                 lr.lrNumber || '',
                 new Date(lr.bookingDate).toLocaleDateString("en-GB"),
                 lr.loadingDetails?.loadingPoint || '',
                 lr.loadingDetails?.unloadingPoint || '',
                 lr.loadingDetails?.weight || '',
-                freightAmount, // Rate column
-                freightAmount, // Freight column
+                displayAmount,
+                displayAmount,
                 truckNumbers || 'N/A'
             ];
         });
@@ -128,19 +129,19 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
             head: [['LR NO', 'DATE', 'FROM', 'TO', 'WEIGHT', 'RATE', 'FREIGHT', 'TRUCK NO']],
             body: tableBody,
             theme: 'grid',
-            // --- FIX: Define column widths to ensure content fits ---
+            // --- FIX: Increased column widths to prevent text wrapping ---
             columnStyles: {
-                0: { cellWidth: 15 }, // LR NO
-                1: { cellWidth: 22 }, // DATE
-                2: { cellWidth: 25 }, // FROM
-                3: { cellWidth: 25 }, // TO
-                4: { cellWidth: 18 }, // WEIGHT
-                5: { cellWidth: 22, halign: 'right' }, // RATE
-                6: { cellWidth: 22, halign: 'right' }, // FREIGHT
-                7: { cellWidth: 'auto' } // TRUCK NO
+                0: { cellWidth: 15 },        // LR NO
+                1: { cellWidth: 22 },        // DATE
+                2: { cellWidth: 30 },        // FROM
+                3: { cellWidth: 30 },        // TO
+                4: { cellWidth: 18, halign: 'right' }, // WEIGHT
+                5: { cellWidth: 25, halign: 'right' }, // RATE
+                6: { cellWidth: 25, halign: 'right' }, // FREIGHT
+                7: { cellWidth: 'auto' }     // TRUCK NO
             },
             foot: [
-                ['', '', '', '', '', 'TOTAL', `₹${bill.totalAmount.toFixed(2)}`, '']
+                ['', '', '', '', '', 'TOTAL', `₹${(Number(bill.totalAmount) || 0).toFixed(2)}`, '']
             ],
             footStyles: {
                 fontStyle: 'bold',
