@@ -184,7 +184,7 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
 
         autoTable(doc, {
             startY: yPos + 5,
-            head: [['LR NO', 'DATE', 'FROM', 'TO', 'WEIGHT', 'RATE (₹)', 'FREIGHT (₹)', 'TRUCK NO']],
+            head: [['LR NO', 'DATE', 'FROM', 'TO', 'WEIGHT', 'RATE', 'FREIGHT', 'TRUCK NO']],
             body: tableBody,
             theme: 'grid',
             headStyles: { halign: 'center', fontStyle: 'bold' },
@@ -192,8 +192,8 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
             styles: { halign: 'center' },
             footStyles: { halign: 'center', fontStyle: 'bold' },
             columnStyles: {
-                0: { cellWidth: 15 }, 1: { cellWidth: 21 }, 2: { cellWidth: 28 }, 3: { cellWidth: 28 },
-                4: { cellWidth: 18 }, 5: { cellWidth: 24 }, 6: { cellWidth: 24 }, 7: { cellWidth: 24 }
+                0: { cellWidth: 15 }, 1: { cellWidth: 22 }, 2: { cellWidth: 28 }, 3: { cellWidth: 28 },
+                4: { cellWidth: 19 }, 5: { cellWidth: 26 }, 6: { cellWidth: 26 }, 7: { cellWidth: 26 }
             },
             foot: [
                 ['', '', '', '', '', 'TOTAL', displayTotal, '']
