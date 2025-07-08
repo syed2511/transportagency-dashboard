@@ -106,19 +106,19 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
         if (party.gstin) { y += 6; doc.setFont("helvetica", "bold"); doc.text(`GSTIN: ${party.gstin}`, 14, y); }
         y += 10;
         doc.text("SUB: Regd - Transportation Bill.", 14, y);
-
-        // --- UPDATED: Pass raw numbers to the table ---
+        
+        // Restore previous fix for Rate/Freight columns but use toFixed(2)
         const tableBody = lrsInBill.map(lr => {
             const truckNumbers = (lr.truckDetails?.truckNumbers || [lr.truckDetails?.truckNumber]).filter(Boolean).join(', ');
-            const freightAmount = parseFloat(lr.billDetails?.amount) || 0;
+            const freightAmount = `₹${(parseFloat(lr.billDetails?.amount) || 0).toFixed(2)}`;
             return [
                 lr.lrNumber || '',
                 new Date(lr.bookingDate).toLocaleDateString("en-GB"),
                 lr.loadingDetails?.loadingPoint || '',
                 lr.loadingDetails?.unloadingPoint || '',
                 lr.loadingDetails?.weight || '',
-                freightAmount, // Rate column (as a number)
-                freightAmount, // Freight column (as a number)
+                freightAmount, // Rate column
+                freightAmount, // Freight column
                 truckNumbers || 'N/A'
             ];
         });
@@ -128,32 +128,26 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
             head: [['LR NO', 'DATE', 'FROM', 'TO', 'WEIGHT', 'RATE', 'FREIGHT', 'TRUCK NO']],
             body: tableBody,
             theme: 'grid',
+            // --- FIX: Define column widths to ensure content fits ---
+            columnStyles: {
+                0: { cellWidth: 15 }, // LR NO
+                1: { cellWidth: 22 }, // DATE
+                2: { cellWidth: 25 }, // FROM
+                3: { cellWidth: 25 }, // TO
+                4: { cellWidth: 18 }, // WEIGHT
+                5: { cellWidth: 22, halign: 'right' }, // RATE
+                6: { cellWidth: 22, halign: 'right' }, // FREIGHT
+                7: { cellWidth: 'auto' } // TRUCK NO
+            },
             foot: [
-                // Pass the raw total amount number here as well
-                ['', '', '', '', '', 'TOTAL', bill.totalAmount, '']
+                ['', '', '', '', '', 'TOTAL', `₹${bill.totalAmount.toFixed(2)}`, '']
             ],
             footStyles: {
                 fontStyle: 'bold',
                 halign: 'right'
             },
-            // --- NEW: Use a hook to format the numbers correctly ---
-            didParseCell: function(data) {
-                // Target the 'Rate' and 'Freight' columns (index 5 and 6)
-                if ((data.section === 'body' || data.section === 'foot') && (data.column.index === 5 || data.column.index === 6)) {
-                    // Check if the cell content is a number
-                    if (typeof data.cell.raw === 'number') {
-                        // Format the number as currency with the Rupee symbol
-                        data.cell.text = [`₹${data.cell.raw.toFixed(0)}`];
-                    }
-                }
-            },
-            columnStyles: {
-                5: { halign: 'right' }, // Right-align Rate column
-                6: { halign: 'right' }, // Right-align Freight column
-            },
             didDrawPage: function (data) {
                 let finalY = data.cursor.y;
-                
                 doc.setFont("helvetica", "bold");
                 doc.text(`Total Rupees ${numberToWords(bill.totalAmount)}`, 14, finalY + 15);
 
@@ -182,7 +176,7 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
         console.error("Failed to generate PDF:", error);
         showAlert("Download Failed", "An error occurred while generating the PDF. Please check the console for details.");
     }
-};								
+};
 															
 const generateDueStatementPDF = (party, bills, lrs, showAlert) => {															
 try {															
