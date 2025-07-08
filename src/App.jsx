@@ -111,7 +111,7 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
         if (!config) { showAlert("Config Error", `No bill format configured for ${bill.companyName}`); return; }
         const party = bill.billTo === 'Consignor' ? lrsInBill[0].consignor : lrsInBill[0].consignee;
 
-        // --- Header Section ---
+        // Header Section
         let yPos = 18;
         doc.setFontSize(22);
         doc.setFont("helvetica", "bold");
@@ -162,17 +162,35 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
         yPos += 10;
         doc.text("SUB: Regd - Transportation Bill.", 14, yPos);
 
+        // --- FINAL FIX: Group by truck number and show "DO" correctly ---
+        const processedTrucks = new Set();
         const tableBody = lrsInBill.map(lr => {
-            const truckNumbers = (lr.truckDetails?.truckNumbers || [lr.truckDetails?.truckNumber]).filter(Boolean).join(', ');
-            const amount = Number(bill.totalAmount) || 0;
-            const displayAmount = amount.toLocaleString('en-IN', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            });
+            const truckNumbersArray = (lr.truckDetails?.truckNumbers || [lr.truckDetails?.truckNumber]).filter(Boolean);
+            const primaryTruck = truckNumbersArray[0] || 'N/A';
+            const truckNumbersString = truckNumbersArray.join(', ');
+
+            let displayValue;
+
+            if (processedTrucks.has(primaryTruck)) {
+                displayValue = 'DO';
+            } else {
+                const amount = Number(lr.billDetails?.amount) || 0;
+                displayValue = amount.toLocaleString('en-IN', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+                processedTrucks.add(primaryTruck);
+            }
+            
             return [
-                lr.lrNumber || '', new Date(lr.bookingDate).toLocaleDateString("en-GB"),
-                lr.loadingDetails?.loadingPoint || '', lr.loadingDetails?.unloadingPoint || '',
-                lr.loadingDetails?.weight || '', displayAmount, displayAmount, truckNumbers || 'N/A'
+                lr.lrNumber || '',
+                new Date(lr.bookingDate).toLocaleDateString("en-GB"),
+                lr.loadingDetails?.loadingPoint || '',
+                lr.loadingDetails?.unloadingPoint || '',
+                lr.loadingDetails?.weight || '',
+                displayValue,
+                displayValue,
+                truckNumbersString
             ];
         });
 
@@ -188,7 +206,6 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
             body: tableBody,
             theme: 'grid',
             headStyles: { halign: 'center', fontStyle: 'bold' },
-            // FIX: Removed stray hyphen from this line
             styles: { halign: 'center' },
             footStyles: { halign: 'center', fontStyle: 'bold' },
             columnStyles: {
