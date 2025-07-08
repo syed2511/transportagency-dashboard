@@ -107,17 +107,18 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
         y += 10;
         doc.text("SUB: Regd - Transportation Bill.", 14, y);
 
-        // --- FIX #1: Correctly show freight for each LR ---
+        // --- UPDATED: Pass raw numbers to the table ---
         const tableBody = lrsInBill.map(lr => {
             const truckNumbers = (lr.truckDetails?.truckNumbers || [lr.truckDetails?.truckNumber]).filter(Boolean).join(', ');
+            const freightAmount = parseFloat(lr.billDetails?.amount) || 0;
             return [
                 lr.lrNumber || '',
                 new Date(lr.bookingDate).toLocaleDateString("en-GB"),
                 lr.loadingDetails?.loadingPoint || '',
                 lr.loadingDetails?.unloadingPoint || '',
                 lr.loadingDetails?.weight || '',
-                'N/A', // Rate column
-                `₹${(parseFloat(lr.billDetails?.amount) || 0).toFixed(2)}`, // Freight column for each LR
+                freightAmount, // Rate column (as a number)
+                freightAmount, // Freight column (as a number)
                 truckNumbers || 'N/A'
             ];
         });
@@ -127,21 +128,31 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
             head: [['LR NO', 'DATE', 'FROM', 'TO', 'WEIGHT', 'RATE', 'FREIGHT', 'TRUCK NO']],
             body: tableBody,
             theme: 'grid',
-
-            // --- FIX #2: Add a proper table footer for the total amount ---
             foot: [
-                ['', '', '', '', '', 'TOTAL', `₹${bill.totalAmount.toFixed(2)}`, '']
+                // Pass the raw total amount number here as well
+                ['', '', '', '', '', 'TOTAL', bill.totalAmount, '']
             ],
             footStyles: {
                 fontStyle: 'bold',
-                halign: 'right' // Right-aligns the text in the footer cells
+                halign: 'right'
             },
-
+            // --- NEW: Use a hook to format the numbers correctly ---
+            didParseCell: function(data) {
+                // Target the 'Rate' and 'Freight' columns (index 5 and 6)
+                if ((data.section === 'body' || data.section === 'foot') && (data.column.index === 5 || data.column.index === 6)) {
+                    // Check if the cell content is a number
+                    if (typeof data.cell.raw === 'number') {
+                        // Format the number as currency with the Rupee symbol
+                        data.cell.text = [`₹${data.cell.raw.toFixed(0)}`];
+                    }
+                }
+            },
+            columnStyles: {
+                5: { halign: 'right' }, // Right-align Rate column
+                6: { halign: 'right' }, // Right-align Freight column
+            },
             didDrawPage: function (data) {
-                // The cursor's Y position is now after the table and its new footer
                 let finalY = data.cursor.y;
-
-                // The old manual total text is removed, as it's now in the footer.
                 
                 doc.setFont("helvetica", "bold");
                 doc.text(`Total Rupees ${numberToWords(bill.totalAmount)}`, 14, finalY + 15);
@@ -171,7 +182,7 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
         console.error("Failed to generate PDF:", error);
         showAlert("Download Failed", "An error occurred while generating the PDF. Please check the console for details.");
     }
-};															
+};								
 															
 const generateDueStatementPDF = (party, bills, lrs, showAlert) => {															
 try {															
