@@ -68,11 +68,40 @@ str += inWords(n, '');
 return str.trim().toUpperCase().replace(/\s+/g, ' ') + " ONLY";															
 };															
 															
-const companyConfigs = {															
-"GLOBAL LOGISTICS": { header: "GLOBAL LOGISTICS", prefix: "GL", bank: "ICICI BANK", ac: "631505500740", ifsc: "ICIC0006315" },															
-"SRI KUMAR TRANSPORT": { header: "SRI KUMAR TRANSPORT", prefix: "SKT", bank: "ICICI BANK", ac: "631505013772", ifsc: "ICIC0006315" },															
-"SAI KUMAR TRANSPORT": { header: "SAI KUMAR TRANSPORT", prefix: "SAI", bank: "BANK OF MAHARASHTRA", ac: "60380956429", ifsc: "MAHB0001126" }															
-};															
+const companyConfigs = {
+    "GLOBAL LOGISTICS": {
+        header: "GLOBAL LOGISTICS",
+        prefix: "GL",
+        address: "2-42-69/3 ILTD JUNCTION, RAJAMAHENDRAWARAM",
+        enrollmentNo: "37AHKPJ7246C1ZB",
+        panNo: "AHKPJ7246C",
+        phone: "9885086504, 7396579956",
+        email: "GLOBALRJY1@GMAIL.COM",
+        bank: "ICICI BANK",
+        ac: "631505500740",
+        ifsc: "ICIC0006315"
+    },
+    "SRI KUMAR TRANSPORT": {
+        header: "SRI KUMAR TRANSPORT",
+        prefix: "SKT",
+        address: "6-93/7/4, NEAR KONTHAMURU PANCHAYATI OFFICE",
+        phone: "9885086504, 9390680009",
+        email: "SKTC.RJY@GMAIL.COM",
+        bank: "ICICI BANK",
+        ac: "631505013772",
+        ifsc: "ICIC0006315"
+    },
+    "SAI KUMAR TRANSPORT": {
+        header: "SAI KUMAR TRANSPORT",
+        prefix: "SAI",
+        address: "6-93/7/4, NEAR KONTHAMURU PANCHAYATI OFFICE",
+        phone: "9885086504, 9390680009",
+        email: "SKTC.RJY@GMAIL.COM",
+        bank: "BANK OF MAHARASHTRA",
+        ac: "60380956429",
+        ifsc: "MAHB0001126"
+    }
+};														
 															
 // --- PDF Generation Functions ---															
 const generatePdfForBill = (bill, lrsInBill, showAlert) => {
@@ -82,32 +111,58 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
         if (!config) { showAlert("Config Error", `No bill format configured for ${bill.companyName}`); return; }
         const party = bill.billTo === 'Consignor' ? lrsInBill[0].consignor : lrsInBill[0].consignee;
 
-        // Header Section
+        // --- Header Section ---
+        let yPos = 18;
         doc.setFontSize(22);
         doc.setFont("helvetica", "bold");
-        doc.text(config.header, 105, 20, { align: "center" });
-        doc.setFontSize(10);
-        doc.setFont("helvetica", "normal");
-        doc.text("TRANSPORT COMMISSION AGENTS", 105, 26, { align: "center" });
-        doc.line(14, 28, 196, 28);
-        doc.setFontSize(10);
-        doc.setFont("helvetica", "bold");
-        doc.text(`BILL NO. ${config.prefix}/${bill.billNumber}/${getFinancialYear()}`, 14, 35);
-        doc.text(`RAJAHMUNDRY`, 196, 35, { align: "right" });
-        doc.setFont("helvetica", "normal");
-        doc.text(`DT: ${new Date(bill.billDate).toLocaleDateString("en-GB")}`, 196, 40, { align: "right" });
-        let y = 48; doc.text("TO", 14, y);
-        y += 6;
-        doc.setFont("helvetica", "bold");
-        doc.text(party.name, 14, y);
-        y += 6;
-        doc.setFont("helvetica", "normal");
-        doc.text(party.address || "N/A", 14, y);
-        if (party.gstin) { y += 6; doc.setFont("helvetica", "bold"); doc.text(`GSTIN: ${party.gstin}`, 14, y); }
-        y += 10;
-        doc.text("SUB: Regd - Transportation Bill.", 14, y);
+        doc.text(config.header, 105, yPos, { align: "center" });
 
-        // --- FIX #1: Format numbers with Indian commas ---
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        
+        if (config.address) {
+            yPos += 6;
+            doc.text(config.address, 105, yPos, { align: "center" });
+        }
+        
+        // Add PAN and Enrollment No for Global Logistics
+        if (config.panNo && config.enrollmentNo) {
+            yPos += 5;
+            doc.setFont("helvetica", "bold");
+            doc.text(`PAN: ${config.panNo} | Enrollment No: ${config.enrollmentNo}`, 105, yPos, { align: "center" });
+            doc.setFont("helvetica", "normal");
+        }
+
+        yPos += 5; // Add space before line
+        doc.line(14, yPos, 196, yPos);
+        
+        // Bill Details
+        yPos += 7;
+        doc.setFont("helvetica", "bold");
+        doc.text(`BILL NO. ${config.prefix}/${bill.billNumber}/${getFinancialYear()}`, 14, yPos);
+        doc.text(`RAJAHMUNDRY`, 196, yPos, { align: "right" });
+        
+        yPos += 5;
+        doc.setFont("helvetica", "normal");
+        doc.text(`DT: ${new Date(bill.billDate).toLocaleDateString("en-GB")}`, 196, yPos, { align: "right" });
+        
+        // Party Details
+        yPos += 8;
+        doc.text("TO", 14, yPos);
+        yPos += 6;
+        doc.setFont("helvetica", "bold");
+        doc.text(party.name, 14, yPos);
+        yPos += 6;
+        doc.setFont("helvetica", "normal");
+        doc.text(party.address || "N/A", 14, yPos);
+        if (party.gstin) { 
+            yPos += 6; 
+            doc.setFont("helvetica", "bold"); 
+            doc.text(`GSTIN: ${party.gstin}`, 14, yPos); 
+        }
+        yPos += 10;
+        doc.text("SUB: Regd - Transportation Bill.", 14, yPos);
+
         const tableBody = lrsInBill.map(lr => {
             const truckNumbers = (lr.truckDetails?.truckNumbers || [lr.truckDetails?.truckNumber]).filter(Boolean).join(', ');
             const amount = Number(bill.totalAmount) || 0;
@@ -115,20 +170,13 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
             });
-            
             return [
-                lr.lrNumber || '',
-                new Date(lr.bookingDate).toLocaleDateString("en-GB"),
-                lr.loadingDetails?.loadingPoint || '',
-                lr.loadingDetails?.unloadingPoint || '',
-                lr.loadingDetails?.weight || '',
-                displayAmount,
-                displayAmount,
-                truckNumbers || 'N/A'
+                lr.lrNumber || '', new Date(lr.bookingDate).toLocaleDateString("en-GB"),
+                lr.loadingDetails?.loadingPoint || '', lr.loadingDetails?.unloadingPoint || '',
+                lr.loadingDetails?.weight || '', displayAmount, displayAmount, truckNumbers || 'N/A'
             ];
         });
 
-        // Format the total amount for the footer
         const totalAmount = Number(bill.totalAmount) || 0;
         const displayTotal = totalAmount.toLocaleString('en-IN', {
             minimumFractionDigits: 2,
@@ -136,23 +184,16 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
         });
 
         autoTable(doc, {
-            startY: y + 5,
+            startY: yPos + 5,
             head: [['LR NO', 'DATE', 'FROM', 'TO', 'WEIGHT', 'RATE', 'FREIGHT', 'TRUCK NO']],
             body: tableBody,
             theme: 'grid',
-            // --- FIX #2: Center-align all table content ---
             headStyles: { halign: 'center', fontStyle: 'bold' },
-            styles: { halign: 'center' },
+            styles: { halign: 'center',-
             footStyles: { halign: 'center', fontStyle: 'bold' },
             columnStyles: {
-                0: { cellWidth: 15 },
-                1: { cellWidth: 22 },
-                2: { cellWidth: 28 },
-                3: { cellWidth: 28 },
-                4: { cellWidth: 19 },
-                5: { cellWidth: 26 },
-                6: { cellWidth: 26 },
-                7: { cellWidth: 26 }
+                0: { cellWidth: 15 }, 1: { cellWidth: 22 }, 2: { cellWidth: 28 }, 3: { cellWidth: 28 },
+                4: { cellWidth: 19 }, 5: { cellWidth: 26 }, 6: { cellWidth: 26 }, 7: { cellWidth: 26 }
             },
             foot: [
                 ['', '', '', '', '', 'TOTAL', displayTotal, '']
@@ -175,10 +216,25 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
                 doc.setFont("helvetica", "bold");
                 doc.text(`For ${config.header}`, 196, finalY + 30, { align: "right" });
 
+                // --- Page Footer with Contact Details ---
                 const pageHeight = doc.internal.pageSize.getHeight();
+                const pageLeftMargin = 14;
+                const pageRightMargin = 196;
+
+                let bottomY = pageHeight - 15;
+                doc.setFontSize(9);
+                doc.setFont("helvetica", "bold");
+
+                if (config.phone) {
+                    doc.text(`Contact: ${config.phone}`, pageLeftMargin, bottomY);
+                }
+                if (config.email) {
+                    doc.text(`Email: ${config.email}`, pageRightMargin, bottomY, { align: 'right' });
+                }
+
                 doc.setFontSize(9);
                 doc.setFont("helvetica", "italic");
-                doc.text("*THIS IS COMPUTER GENERATED. NO SIGNATURE REQUIRED.", 105, pageHeight - 10, { align: "center" });
+                doc.text("*THIS IS COMPUTER GENERATED. NO SIGNATURE REQUIRED.", 105, pageHeight - 8, { align: "center" });
             }
         });
 
