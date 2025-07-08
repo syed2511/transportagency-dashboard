@@ -82,7 +82,7 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
         if (!config) { showAlert("Config Error", `No bill format configured for ${bill.companyName}`); return; }
         const party = bill.billTo === 'Consignor' ? lrsInBill[0].consignor : lrsInBill[0].consignee;
 
-        // --- Header Section (No changes here) ---
+        // Header Section
         doc.setFontSize(22);
         doc.setFont("helvetica", "bold");
         doc.text(config.header, 105, 20, { align: "center" });
@@ -107,13 +107,10 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
         y += 10;
         doc.text("SUB: Regd - Transportation Bill.", 14, y);
 
-        // --- FINAL FIX for Number and Column issues ---
         const tableBody = lrsInBill.map(lr => {
             const truckNumbers = (lr.truckDetails?.truckNumbers || [lr.truckDetails?.truckNumber]).filter(Boolean).join(', ');
-            
-            // Use the bill's totalAmount, which is correct, for the line item.
-            // This handles the case where the bill has one LR.
-            const displayAmount = `₹${(Number(bill.totalAmount) || 0).toFixed(2)}`;
+            // *** TEST: Remove currency symbol to isolate the bug ***
+            const displayAmount = `${(Number(bill.totalAmount) || 0).toFixed(2)}`;
             
             return [
                 lr.lrNumber || '',
@@ -132,23 +129,23 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
             head: [['LR NO', 'DATE', 'FROM', 'TO', 'WEIGHT', 'RATE', 'FREIGHT', 'TRUCK NO']],
             body: tableBody,
             theme: 'grid',
-            // Define widths for ALL columns to prevent wrapping
             columnStyles: {
                 0: { cellWidth: 15 },
                 1: { cellWidth: 21 },
                 2: { cellWidth: 28 },
                 3: { cellWidth: 28 },
-                4: { cellWidth: 18, halign: 'center' },
-                5: { cellWidth: 24, halign: 'center' },
-                6: { cellWidth: 24, halign: 'center' },
-                7: { cellWidth: 24, halign: 'center' }
+                4: { cellWidth: 18, halign: 'right' },
+                5: { cellWidth: 28, halign: 'right' },
+                6: { cellWidth: 28, halign: 'right' },
+                7: { cellWidth: 28, halign: 'center' }
             },
             foot: [
-                ['', '', '', '', '', 'TOTAL', `₹${(Number(bill.totalAmount) || 0).toFixed(2)}`, '']
+                // *** TEST: Remove currency symbol from footer ***
+                ['', '', '', '', '', 'TOTAL', `${(Number(bill.totalAmount) || 0).toFixed(2)}`, '']
             ],
             footStyles: {
                 fontStyle: 'bold',
-                halign: 'center'
+                halign: 'right'
             },
             didDrawPage: function (data) {
                 let finalY = data.cursor.y;
@@ -180,7 +177,7 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
         console.error("Failed to generate PDF:", error);
         showAlert("Download Failed", "An error occurred while generating the PDF. Please check the console for details.");
     }
-};													
+};			
 const generateDueStatementPDF = (party, bills, lrs, showAlert) => {															
 try {															
 const doc = new jsPDF();															
