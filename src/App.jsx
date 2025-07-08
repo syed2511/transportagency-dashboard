@@ -125,7 +125,6 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
             doc.text(config.address, 105, yPos, { align: "center" });
         }
         
-        // Add PAN and Enrollment No for Global Logistics
         if (config.panNo && config.enrollmentNo) {
             yPos += 5;
             doc.setFont("helvetica", "bold");
@@ -133,7 +132,7 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
             doc.setFont("helvetica", "normal");
         }
 
-        yPos += 5; // Add space before line
+        yPos += 5;
         doc.line(14, yPos, 196, yPos);
         
         // Bill Details
@@ -185,15 +184,16 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
 
         autoTable(doc, {
             startY: yPos + 5,
-            head: [['LR NO', 'DATE', 'FROM', 'TO', 'WEIGHT', 'RATE', 'FREIGHT', 'TRUCK NO']],
+            head: [['LR NO', 'DATE', 'FROM', 'TO', 'WEIGHT', 'RATE (₹)', 'FREIGHT (₹)', 'TRUCK NO']],
             body: tableBody,
             theme: 'grid',
             headStyles: { halign: 'center', fontStyle: 'bold' },
-            styles: { halign: 'center',-
+            // FIX: Removed stray hyphen from this line
+            styles: { halign: 'center' },
             footStyles: { halign: 'center', fontStyle: 'bold' },
             columnStyles: {
-                0: { cellWidth: 15 }, 1: { cellWidth: 22 }, 2: { cellWidth: 28 }, 3: { cellWidth: 28 },
-                4: { cellWidth: 19 }, 5: { cellWidth: 26 }, 6: { cellWidth: 26 }, 7: { cellWidth: 26 }
+                0: { cellWidth: 15 }, 1: { cellWidth: 21 }, 2: { cellWidth: 28 }, 3: { cellWidth: 28 },
+                4: { cellWidth: 18 }, 5: { cellWidth: 24 }, 6: { cellWidth: 24 }, 7: { cellWidth: 24 }
             },
             foot: [
                 ['', '', '', '', '', 'TOTAL', displayTotal, '']
@@ -216,7 +216,7 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
                 doc.setFont("helvetica", "bold");
                 doc.text(`For ${config.header}`, 196, finalY + 30, { align: "right" });
 
-                // --- Page Footer with Contact Details ---
+                // Page Footer with Contact Details
                 const pageHeight = doc.internal.pageSize.getHeight();
                 const pageLeftMargin = 14;
                 const pageRightMargin = 196;
