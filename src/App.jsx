@@ -338,7 +338,7 @@ const generateDueStatementPDF = (party, bills, lrs, showAlert) => {
             foot: [
                 ['', '', '', 'Total Due:', displayTotal]
             ],
-            footStyles: { halign: 'right', fontStyle: 'bold' },
+            footStyles: { halign: 'center', fontStyle: 'bold' },
         });
         
         doc.save(`Due-Statement-${party.name}-${party.companyName}.pdf`);
