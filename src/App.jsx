@@ -261,64 +261,92 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
         showAlert("Download Failed", "An error occurred while generating the PDF. Please check the console for details.");
     }
 };
-const generateDueStatementPDF = (party, bills, lrs, showAlert) => {															
-try {															
-const doc = new jsPDF();															
-const config = companyConfigs[party.companyName] || { header: party.companyName };															
-doc.setFontSize(18);															
-doc.setFont('helvetica', 'bold');															
-doc.text(config.header, 105, 15, { align: 'center' });															
-doc.setFontSize(14);															
-doc.text('STATEMENT OF ACCOUNT', 105, 22, { align: 'center' });															
-doc.setFontSize(10);															
-doc.setFont('helvetica', 'normal');															
-doc.text(`Date: ${new Date().toLocaleDateString('en-GB')}`, 196, 30, { align: 'right' });															
-let y = 40;															
-doc.setFontSize(12);															
-doc.text('To:', 14, y);															
-y += 6;															
-doc.setFont('helvetica', 'bold');															
-doc.text(party.name, 14, y);															
-y += 6;															
-doc.setFont('helvetica', 'normal');															
-doc.text(party.address || "N/A", 14, y);															
-const tableBody = bills.map(bill => {															
-const firstLr = lrs.find(lr => lr.id === bill.lrIds[0]);															
-const truckNumbers = bill.lrIds															
-.flatMap(lrId => {															
-const lr = lrs.find(l => l.id === lrId);															
-return lr?.truckDetails?.truckNumbers || (lr?.truckDetails?.truckNumber ? [lr.truckDetails.truckNumber] : []);															
-})															
-.filter(Boolean)															
-.join(', ');															
-return [															
-new Date(bill.billDate).toLocaleDateString('en-GB'),															
-bill.billNumber,															
-firstLr?.loadingDetails.unloadingPoint || '',															
-truckNumbers || 'N/A',															
-`₹${bill.totalAmount.toFixed(2)}`															
-];															
-});															
-autoTable(doc, {															
-startY: y + 10,															
-head: [['BILL DATE', 'BILL NO.', 'DESTINATION', 'TRUCK NO(S)', 'AMOUNT']],															
-body: tableBody,															
-theme: 'grid',															
-didDrawPage: function(data) {															
-let finalY = data.cursor.y;															
-const totalDue = bills.reduce((sum, bill) => sum + bill.totalAmount, 0);															
-doc.setFontSize(12);															
-doc.setFont('helvetica', 'bold');															
-doc.text('Total Due:', 140, finalY + 10, { align: 'right' });															
-doc.text(`₹${totalDue.toFixed(2)}`, 196, finalY + 10, { align: 'right' });															
-}															
-});															
-doc.save(`Due-Statement-${party.name}-${party.companyName}.pdf`);															
-} catch (error) {															
-console.error("Failed to generate Statement PDF:", error);															
-showAlert("Download Failed", "An error occurred while generating the Statement PDF. Please check the console for details.");															
-}															
-};															
+const generateDueStatementPDF = (party, bills, lrs, showAlert) => {
+    try {
+        const doc = new jsPDF();
+        const config = companyConfigs[party.companyName] || { header: party.companyName };
+        
+        // Header
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.text(config.header, 105, 15, { align: 'center' });
+        doc.setFontSize(14);
+        doc.text('STATEMENT OF ACCOUNT', 105, 22, { align: 'center' });
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Date: ${new Date().toLocaleDateString('en-GB')}`, 196, 30, { align: 'right' });
+
+        // Party Info
+        let y = 40;
+        doc.setFontSize(12);
+        doc.text('To:', 14, y);
+        y += 6;
+        doc.setFont('helvetica', 'bold');
+        doc.text(party.name, 14, y);
+        y += 6;
+        doc.setFont('helvetica', 'normal');
+        doc.text(party.address || "N/A", 14, y);
+
+        const tableBody = bills.map(bill => {
+            const firstLr = lrs.find(lr => lr.id === bill.lrIds[0]);
+            const truckNumbers = bill.lrIds
+                .flatMap(lrId => {
+                    const lr = lrs.find(l => l.id === lrId);
+                    return lr?.truckDetails?.truckNumbers || (lr?.truckDetails?.truckNumber ? [lr.truckDetails.truckNumber] : []);
+                })
+                .filter(Boolean)
+                .join(', ');
+
+            // Format amount with commas, without Rupee symbol
+            const displayAmount = (Number(bill.totalAmount) || 0).toLocaleString('en-IN', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+
+            return [
+                new Date(bill.billDate).toLocaleDateString('en-GB'),
+                bill.billNumber,
+                firstLr?.loadingDetails.unloadingPoint || '',
+                truckNumbers || 'N/A',
+                displayAmount
+            ];
+        });
+
+        // Calculate and format the total due amount
+        const totalDue = bills.reduce((sum, bill) => sum + bill.totalAmount, 0);
+        const displayTotal = (Number(totalDue) || 0).toLocaleString('en-IN', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+
+        autoTable(doc, {
+            startY: y + 10,
+            head: [['BILL DATE', 'BILL NO.', 'DESTINATION', 'TRUCK NO(S)', 'AMOUNT']],
+            body: tableBody,
+            theme: 'grid',
+            // Styles for alignment and width
+            headStyles: { halign: 'center', fontStyle: 'bold' },
+            styles: { halign: 'center' },
+            columnStyles: {
+                0: { cellWidth: 25 },        // BILL DATE
+                1: { cellWidth: 25 },        // BILL NO.
+                2: { cellWidth: 35 },        // DESTINATION
+                3: { cellWidth: 40 },        // TRUCK NO(S)
+                4: { cellWidth: 35, halign: 'center' } // AMOUNT (right-aligned)
+            },
+            // Use a proper footer for correct alignment
+            foot: [
+                ['', '', '', 'Total Due:', displayTotal]
+            ],
+            footStyles: { halign: 'right', fontStyle: 'bold' },
+        });
+        
+        doc.save(`Due-Statement-${party.name}-${party.companyName}.pdf`);
+    } catch (error) {
+        console.error("Failed to generate Statement PDF:", error);
+        showAlert("Download Failed", "An error occurred while generating the Statement PDF. Please check the console for details.");
+    }
+};														
 															
 															
 // --- UI Components ---															
