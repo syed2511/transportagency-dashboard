@@ -196,7 +196,7 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
 
         autoTable(doc, {
             startY: yPos + 5,
-            head: [['LR NO', 'DATE', 'FROM', 'TO', 'WEIGHT', 'RATE (₹)', 'FREIGHT (₹)', 'TRUCK NO']],
+            head: [['LR NO', 'DATE', 'FROM', 'TO', 'WEIGHT', 'RATE', 'FREIGHT', 'TRUCK NO']],
             body: tableBody,
             theme: 'grid',
             headStyles: { halign: 'center', fontStyle: 'bold' },
