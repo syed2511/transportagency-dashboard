@@ -203,8 +203,8 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
             styles: { halign: 'center' },
             footStyles: { halign: 'center', fontStyle: 'bold' },
             columnStyles: {
-                0: { cellWidth: 15 }, 1: { cellWidth: 22 }, 2: { cellWidth: 28 }, 3: { cellWidth: 28 },
-                4: { cellWidth: 19 }, 5: { cellWidth: 26 }, 6: { cellWidth: 26 }, 7: { cellWidth: 26 }
+                0: { cellWidth: 15 }, 1: { cellWidth: 22 }, 2: { cellWidth: 30 }, 3: { cellWidth: 30 },
+                4: { cellWidth: 19 }, 5: { cellWidth: 27 }, 6: { cellWidth: 27 }, 7: { cellWidth: 27 }
             },
             foot: [
                 ['', '', '', '', '', 'TOTAL', displayTotal, '']
@@ -321,7 +321,7 @@ const generateDueStatementPDF = (party, bills, lrs, showAlert) => {
                 1: { cellWidth: 25 },
                 2: { cellWidth: 35 },
                 3: { cellWidth: 40 },
-                4: { cellWidth: 35, halign: 'center' }
+                4: { cellWidth: 35, halign: 'right' }
             },
             foot: [
                 ['', '', '', 'Total Due:', displayTotal]
@@ -597,10 +597,14 @@ function BillingView({ setView, bills, lrs, db, userId, handleDeleteRequest, sho
         }
     };
     
-    const filteredBills = bills.filter(bill => {
-        if (!selectedMonth) return true;
-        return bill.billDate.startsWith(selectedMonth);
-    });
+    const sortedBills = useMemo(() => {
+        return bills
+            .filter(bill => {
+                if (!selectedMonth) return true;
+                return bill.billDate.startsWith(selectedMonth);
+            })
+            .sort((a, b) => Number(a.billNumber) - Number(b.billNumber));
+    }, [bills, selectedMonth]);
     
     return (
         <div>
@@ -612,7 +616,7 @@ function BillingView({ setView, bills, lrs, db, userId, handleDeleteRequest, sho
                 </div>
             </div>
             <div className="space-y-3">
-                {filteredBills.map(bill => (
+                {sortedBills.map(bill => (
                     <div key={bill.id} className={`p-4 border rounded-lg transition-shadow hover:shadow-md ${bill.status === 'Paid' ? 'bg-green-50' : 'bg-slate-50'}`}>
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                             <div>
