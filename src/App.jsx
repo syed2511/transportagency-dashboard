@@ -203,8 +203,8 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
             styles: { halign: 'center' },
             footStyles: { halign: 'center', fontStyle: 'bold' },
             columnStyles: {
-                0: { cellWidth: 15 }, 1: { cellWidth: 22 }, 2: { cellWidth: 30 }, 3: { cellWidth: 30 },
-                4: { cellWidth: 19 }, 5: { cellWidth: 27 }, 6: { cellWidth: 27 }, 7: { cellWidth: 27 }
+                0: { cellWidth: 15 }, 1: { cellWidth: 22 }, 2: { cellWidth: 29 }, 3: { cellWidth: 28 },
+                4: { cellWidth: 19 }, 5: { cellWidth: 26 }, 6: { cellWidth: 26 }, 7: { cellWidth: 27 }
             },
             foot: [
                 ['', '', '', '', '', 'TOTAL', displayTotal, '']
