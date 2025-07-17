@@ -982,26 +982,69 @@ function App() {
     };
     
     const handleSaveParty = async (partyData) => {
-        if (!user) {
-            showAlert("Error", "You must be logged in.");
-            return;
+    if (!user) {
+        showAlert("Error", "You must be logged in.");
+        return;
+    }
+
+    try {
+        // This logic handles UPDATING an existing party
+        if (partyData.id) {
+            const { id, ...dataToSave } = partyData;
+            const batch = db.batch();
+
+            // Before updating, we need the original party name to find related docs
+            const originalParty = parties.find(p => p.id === id);
+            if (!originalParty) {
+                showAlert("Error", "Could not find the original party data. Update failed.");
+                return;
+            }
+            const originalName = originalParty.name;
+
+            // 1. Update the main party document itself
+            const partyRef = db.collection('users').doc(user.uid).collection('parties').doc(id);
+            batch.update(partyRef, dataToSave);
+
+            // 2. Find and update all LRs where this party was the consignor
+            const lrsAsConsignorQuery = db.collection('users').doc(user.uid).collection('lrs').where('consignor.name', '==', originalName);
+            const lrsAsConsignorSnapshot = await lrsAsConsignorQuery.get();
+            lrsAsConsignorSnapshot.forEach(doc => {
+                batch.update(doc.ref, { consignor: dataToSave });
+            });
+
+            // 3. Find and update all LRs where this party was the consignee
+            const lrsAsConsigneeQuery = db.collection('users').doc(user.uid).collection('lrs').where('consignee.name', '==', originalName);
+            const lrsAsConsigneeSnapshot = await lrsAsConsigneeQuery.get();
+            lrsAsConsigneeSnapshot.forEach(doc => {
+                batch.update(doc.ref, { consignee: dataToSave });
+            });
+
+            // 4. Find and update all Bills for this party
+            const billsQuery = db.collection('users').doc(user.uid).collection('bills').where('partyName', '==', originalName);
+            const billsSnapshot = await billsQuery.get();
+            billsSnapshot.forEach(doc => {
+                // In bills, we only store the partyName, so we only update that.
+                batch.update(doc.ref, { partyName: dataToSave.name });
+            });
+            
+            // 5. Commit all the changes at once
+            await batch.commit();
+            showAlert("Success", "Party updated successfully across all records.");
+
+        } else {
+            // This logic handles ADDING a new party (remains the same)
+            await db.collection('users').doc(user.uid).collection('parties').add(partyData);
+            showAlert("Success", "New party added successfully.");
         }
+    } catch (error) {
+        console.error("Error saving party and related documents:", error);
+        showAlert("Save Failed", "Could not save the party details. Check the console for more info.");
+    } finally {
+        // This ensures the modal always closes after the operation
         setIsPartyModalOpen(false);
         setEditingParty(null);
-        try {
-            if (partyData.id) {
-                const { id, ...dataToSave } = partyData;
-                await db.collection('users').doc(user.uid).collection('parties').doc(id).update(dataToSave);
-                showAlert("Success", "Party updated successfully.");
-            } else {
-                await db.collection('users').doc(user.uid).collection('parties').add(partyData);
-                showAlert("Success", "New party added successfully.");
-            }
-        } catch (error) {
-            console.error("Error saving party:", error);
-            showAlert("Save Failed", "Could not save the party details.");
-        }
-    };
+    }
+};
     const handleLogout = () => {
         auth.signOut();
     };
