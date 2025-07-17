@@ -1,10 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import jsPDF from "jspdf";
 import autoTable from 'jspdf-autotable';
-// FIX: Added necessary Firestore functions for cascading updates
 import { db, auth } from './firebaseConfig.js';
-import { collection, query, where, getDocs, writeBatch } from "firebase/firestore";
-
 
 // --- Icon Components ---
 const TruckIcon = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M5 18H3c-.6 0-1-.4-1-1V7c0-.6.4-1 1-1h10c.6 0 1 .4 1 1v11" /><path d="M14 9h4l4 4v4h-8v-4l-4-4Z" /><path d="M10 18h4" /><circle cx="7" cy="18" r="2" /><circle cx="17" cy="18" r="2" /></svg>;
@@ -199,14 +196,14 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
 
         autoTable(doc, {
             startY: yPos + 5,
-            head: [['LR NO', 'DATE', 'FROM', 'TO', 'WEIGHT', 'RATE (₹)', 'FREIGHT (₹)', 'TRUCK NO']],
+            head: [['LR NO', 'DATE', 'FROM', 'TO', 'WEIGHT', 'RATE', 'FREIGHT', 'TRUCK NO']],
             body: tableBody,
             theme: 'grid',
             headStyles: { halign: 'center', fontStyle: 'bold' },
             styles: { halign: 'center' },
             footStyles: { halign: 'center', fontStyle: 'bold' },
             columnStyles: {
-                0: { cellWidth: 16 }, 1: { cellWidth: 22 }, 2: { cellWidth: 30 }, 3: { cellWidth: 28 },
+                0: { cellWidth: 15 }, 1: { cellWidth: 22 }, 2: { cellWidth: 29 }, 3: { cellWidth: 28 },
                 4: { cellWidth: 19 }, 5: { cellWidth: 26 }, 6: { cellWidth: 26 }, 7: { cellWidth: 27 }
             },
             foot: [
@@ -600,7 +597,6 @@ function BillingView({ setView, bills, lrs, db, userId, handleDeleteRequest, sho
         }
     };
     
-    // FIX: Sort bills by billNumber
     const sortedBills = useMemo(() => {
         return bills
             .filter(bill => {
@@ -620,7 +616,6 @@ function BillingView({ setView, bills, lrs, db, userId, handleDeleteRequest, sho
                 </div>
             </div>
             <div className="space-y-3">
-                {/* FIX: Map over sortedBills */}
                 {sortedBills.map(bill => (
                     <div key={bill.id} className={`p-4 border rounded-lg transition-shadow hover:shadow-md ${bill.status === 'Paid' ? 'bg-green-50' : 'bg-slate-50'}`}>
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
@@ -917,8 +912,8 @@ function App() {
         };
         
         const unsubscribers = Object.entries(collections).map(([path, setter]) => {
-            const queryRef = collection(db, 'users', user.uid, path);
-            return onSnapshot(queryRef, (snapshot) => {
+            const query = db.collection('users').doc(user.uid).collection(path);
+            return query.onSnapshot((snapshot) => {
                 const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
                 setter(data);
                 setDataLoaded(true);
@@ -974,8 +969,7 @@ function App() {
     const handleDelete = useCallback(async (id, collectionName) => {
         if (!user) return;
         try {
-            const docRef = doc(db, 'users', user.uid, collectionName, id);
-            await deleteDoc(docRef);
+            await db.collection('users').doc(user.uid).collection(collectionName).doc(id).delete();
         } catch (error) {
             console.error(`Delete Error in ${collectionName}:`, error);
             showAlert("Deletion Failed", `Could not delete the item from ${collectionName}.`);
@@ -992,70 +986,22 @@ function App() {
             showAlert("Error", "You must be logged in.");
             return;
         }
-
-        const partiesCollectionRef = collection(db, 'users', user.uid, 'parties');
-        
-        // If it's an existing party, handle cascading updates
-        if (partyData.id) {
-            const originalPartyName = editingParty?.name;
-            if (!originalPartyName) {
-                showAlert("Update Error", "Could not find original party name to update related records.");
-                return;
-            }
-
-            const batch = writeBatch(db);
-            const { id, ...dataToUpdate } = partyData;
-
-            // 1. Update the party document itself
-            const partyRef = doc(db, 'users', user.uid, 'parties', id);
-            batch.update(partyRef, dataToUpdate);
-
-            try {
-                // 2. Find and update related LRs (consignor)
-                const lrsConsignorQuery = query(collection(db, 'users', user.uid, 'lrs'), where("consignor.name", "==", originalPartyName));
-                const consignorDocs = await getDocs(lrsConsignorQuery);
-                consignorDocs.forEach(doc => {
-                    batch.update(doc.ref, { consignor: dataToUpdate });
-                });
-
-                // 3. Find and update related LRs (consignee)
-                const lrsConsigneeQuery = query(collection(db, 'users', user.uid, 'lrs'), where("consignee.name", "==", originalPartyName));
-                const consigneeDocs = await getDocs(lrsConsigneeQuery);
-                consigneeDocs.forEach(doc => {
-                    batch.update(doc.ref, { consignee: dataToUpdate });
-                });
-
-                // 4. Find and update related Bills
-                const billsQuery = query(collection(db, 'users', user.uid, 'bills'), where("partyName", "==", originalPartyName));
-                const billDocs = await getDocs(billsQuery);
-                billDocs.forEach(doc => {
-                    batch.update(doc.ref, { partyName: dataToUpdate.name });
-                });
-
-                // Commit all updates at once
-                await batch.commit();
-                showAlert("Success", "Party updated successfully across all records.");
-
-            } catch (error) {
-                console.error("Error updating related records:", error);
-                showAlert("Update Failed", "Failed to update related LRs and Bills.");
-            }
-
-        } else { // It's a new party, just add it
-            try {
-                await addDoc(partiesCollectionRef, partyData);
-                showAlert("Success", "New party added successfully.");
-            } catch (error) {
-                console.error("Error saving new party:", error);
-                showAlert("Save Failed", "Could not save the new party.");
-            }
-        }
-
-        // Close the modal and reset state
         setIsPartyModalOpen(false);
         setEditingParty(null);
+        try {
+            if (partyData.id) {
+                const { id, ...dataToSave } = partyData;
+                await db.collection('users').doc(user.uid).collection('parties').doc(id).update(dataToSave);
+                showAlert("Success", "Party updated successfully.");
+            } else {
+                await db.collection('users').doc(user.uid).collection('parties').add(partyData);
+                showAlert("Success", "New party added successfully.");
+            }
+        } catch (error) {
+            console.error("Error saving party:", error);
+            showAlert("Save Failed", "Could not save the party details.");
+        }
     };
-
     const handleLogout = () => {
         auth.signOut();
     };
