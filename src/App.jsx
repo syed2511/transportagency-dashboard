@@ -163,21 +163,30 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
             const primaryTruck = truckNumbersArray[0] || 'N/A';
             const truckNumbersString = truckNumbersArray.join(', ');
 
-            let displayValue;
+            // --- FINAL LOGIC: Properly calculate Rate and Freight for the PDF table ---
+            const originalFreight = Number(lr.billDetails?.amount) || 0;
+            const ratePerTon = Number(lr.billDetails?.ratePerTon) || 0;
+            const weight = Number(lr.loadingDetails?.weight) || 0;
+            
+            let rateForPdf, freightForPdf;
 
-            if (processedTrucks.has(primaryTruck)) {
-                displayValue = 'DO';
+            if (ratePerTon > 0 && weight > 0) {
+                // Scenario 1: Use ratePerTon as the rate and calculate the final freight.
+                rateForPdf = ratePerTon;
+                freightForPdf = Math.round(ratePerTon * weight);
             } else {
-                // --- MODIFICATION START: Use conditional rate for PDF display ---
-                const freight = Number(lr.billDetails?.amount) || 0;
-                const ratePerTon = Number(lr.billDetails?.ratePerTon) || 0;
-                const billableAmount = ratePerTon > 0 ? ratePerTon : freight;
-                // --- MODIFICATION END ---
-
-                displayValue = billableAmount.toLocaleString('en-IN', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                });
+                // Scenario 2: The original freight is used for BOTH rate and final freight.
+                rateForPdf = originalFreight;
+                freightForPdf = originalFreight;
+            }
+            
+            let displayRate, displayFreight;
+            if (processedTrucks.has(primaryTruck)) {
+                displayRate = 'DO';
+                displayFreight = 'DO';
+            } else {
+                displayRate = rateForPdf.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                displayFreight = freightForPdf.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                 processedTrucks.add(primaryTruck);
             }
             
@@ -187,8 +196,8 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
                 lr.loadingDetails?.loadingPoint || '',
                 lr.loadingDetails?.unloadingPoint || '',
                 lr.loadingDetails?.weight || '',
-                displayValue, // Rate column
-                displayValue, // Freight column
+                displayRate,      // Correct Rate column
+                displayFreight,   // Correct Freight column
                 truckNumbersString
             ];
         });
@@ -456,9 +465,7 @@ function LrForm({ db, userId, setView, parties, existingLr, showAlert, onEditPar
         loadingDetails: { loadingPoint: '', unloadingPoint: '', articles: '', weight: '' },
         consignor: { name: '', address: '', gstin: '' },
         consignee: { name: '', address: '', gstin: '' },
-        // --- MODIFICATION START: Added ratePerTon to initial state ---
         billDetails: { amount: '', ratePerTon: '' },
-        // --- MODIFICATION END ---
         isBilled: false
     }), []);
 
@@ -569,9 +576,7 @@ function LrForm({ db, userId, setView, parties, existingLr, showAlert, onEditPar
                 </div>
                 <Input label="Freight Amount (₹)" type="number" step="0.01" value={formData.billDetails.amount || ''} onChange={(e) => handleChange(e, 'billDetails', 'amount')} required />
                 
-                {/* --- MODIFICATION START: Added input field for ratePerTon --- */}
                 <Input label="Rate per Ton (Optional)" type="number" step="0.01" value={formData.billDetails.ratePerTon || ''} onChange={(e) => handleChange(e, 'billDetails', 'ratePerTon')} />
-                {/* --- MODIFICATION END --- */}
 
             </Section>
             <div className="flex justify-end gap-4 pt-4 border-t">
@@ -688,19 +693,24 @@ function CreateBillForm({ db, userId, setView, lrs, showAlert }) {
             return;
         }
 
-        // --- MODIFICATION START: Use conditional rate for total amount calculation ---
+        // --- FINAL LOGIC: Calculate total amount based on ratePerTon or fallback to freight ---
         const totalAmount = selectedLrs.reduce((sum, lrId) => {
             const lr = lrs.find(l => l.id === lrId);
             if (!lr) return sum;
 
-            const freight = parseFloat(lr.billDetails?.amount) || 0;
+            const originalFreight = parseFloat(lr.billDetails?.amount) || 0;
             const ratePerTon = parseFloat(lr.billDetails?.ratePerTon) || 0;
-            // Use ratePerTon if it exists and is greater than 0, otherwise fallback to the freight amount.
-            const billableAmount = ratePerTon > 0 ? ratePerTon : freight;
+            const weight = parseFloat(lr.loadingDetails?.weight) || 0;
+
+            let billableAmount;
+            if (ratePerTon > 0 && weight > 0) {
+                billableAmount = Math.round(ratePerTon * weight); // Calculate and round
+            } else {
+                billableAmount = originalFreight; // Fallback to original freight amount
+            }
             
             return sum + billableAmount;
         }, 0);
-        // --- MODIFICATION END ---
         
         const newBill = { billNumber, billDate, companyName, billTo, partyName, lrIds: selectedLrs, totalAmount, status: 'Due' };
         const batch = db.batch();
@@ -730,11 +740,17 @@ function CreateBillForm({ db, userId, setView, lrs, showAlert }) {
                 {partyName && <p className="font-semibold text-indigo-600 mb-2">Billing To Party: {partyName}</p>}
                 <div className="max-h-60 overflow-y-auto space-y-2 p-2 bg-slate-50 border rounded-md">
                     {unbilledLrs.length > 0 ? unbilledLrs.map(lr => {
-                        // --- MODIFICATION START: Use conditional rate for display in bill creation ---
-                        const freight = lr.billDetails?.amount || '0';
-                        const ratePerTon = lr.billDetails?.ratePerTon;
-                        const displayAmount = (ratePerTon && parseFloat(ratePerTon) > 0) ? ratePerTon : freight;
-                        // --- MODIFICATION END ---
+                        // --- FINAL LOGIC: Calculate display amount for the selection list ---
+                        const originalFreight = parseFloat(lr.billDetails?.amount) || 0;
+                        const ratePerTon = parseFloat(lr.billDetails?.ratePerTon) || 0;
+                        const weight = parseFloat(lr.loadingDetails?.weight) || 0;
+                        
+                        let displayAmount;
+                        if (ratePerTon > 0 && weight > 0) {
+                            displayAmount = Math.round(ratePerTon * weight).toFixed(2);
+                        } else {
+                            displayAmount = originalFreight.toFixed(2);
+                        }
 
                         return (
                             <div key={lr.id} onClick={() => handleLrSelection(lr.id)} className={`p-3 border rounded-md cursor-pointer transition-colors ${selectedLrs.includes(lr.id) ? 'bg-indigo-100 border-indigo-300' : 'bg-white hover:bg-indigo-50'}`}>
