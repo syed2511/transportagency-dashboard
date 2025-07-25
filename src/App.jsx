@@ -168,8 +168,13 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
             if (processedTrucks.has(primaryTruck)) {
                 displayValue = 'DO';
             } else {
-                const amount = Number(lr.billDetails?.amount) || 0;
-                displayValue = amount.toLocaleString('en-IN', {
+                // --- MODIFICATION START: Use conditional rate for PDF display ---
+                const freight = Number(lr.billDetails?.amount) || 0;
+                const ratePerTon = Number(lr.billDetails?.ratePerTon) || 0;
+                const billableAmount = ratePerTon > 0 ? ratePerTon : freight;
+                // --- MODIFICATION END ---
+
+                displayValue = billableAmount.toLocaleString('en-IN', {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2
                 });
@@ -182,8 +187,8 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
                 lr.loadingDetails?.loadingPoint || '',
                 lr.loadingDetails?.unloadingPoint || '',
                 lr.loadingDetails?.weight || '',
-                displayValue,
-                displayValue,
+                displayValue, // Rate column
+                displayValue, // Freight column
                 truckNumbersString
             ];
         });
@@ -451,10 +456,14 @@ function LrForm({ db, userId, setView, parties, existingLr, showAlert, onEditPar
         loadingDetails: { loadingPoint: '', unloadingPoint: '', articles: '', weight: '' },
         consignor: { name: '', address: '', gstin: '' },
         consignee: { name: '', address: '', gstin: '' },
-        billDetails: { amount: '' },
+        // --- MODIFICATION START: Added ratePerTon to initial state ---
+        billDetails: { amount: '', ratePerTon: '' },
+        // --- MODIFICATION END ---
         isBilled: false
     }), []);
+
     const [formData, setFormData] = useState(existingLr || getInitialData());
+
     useEffect(() => {
         if (existingLr) {
             const truckDetails = existingLr.truckDetails || {};
@@ -464,6 +473,7 @@ function LrForm({ db, userId, setView, parties, existingLr, showAlert, onEditPar
             setFormData(getInitialData());
         }
     }, [existingLr, getInitialData]);
+
     const handlePartySelect = (party, type) => { if (party) setFormData(prev => ({ ...prev, [type]: { name: party.name, address: party.address, gstin: party.gstin } }));};
     const handleChange = (e, section, field) => setFormData(prev => ({ ...prev, [section]: { ...prev[section], [field]: e.target.value } }));
     const handleRootChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -558,6 +568,11 @@ function LrForm({ db, userId, setView, parties, existingLr, showAlert, onEditPar
                     </button>
                 </div>
                 <Input label="Freight Amount (₹)" type="number" step="0.01" value={formData.billDetails.amount || ''} onChange={(e) => handleChange(e, 'billDetails', 'amount')} required />
+                
+                {/* --- MODIFICATION START: Added input field for ratePerTon --- */}
+                <Input label="Rate per Ton (Optional)" type="number" step="0.01" value={formData.billDetails.ratePerTon || ''} onChange={(e) => handleChange(e, 'billDetails', 'ratePerTon')} />
+                {/* --- MODIFICATION END --- */}
+
             </Section>
             <div className="flex justify-end gap-4 pt-4 border-t">
                 <button type="button" onClick={() => setView('lrs')} className="btn-secondary">Cancel</button>
@@ -672,7 +687,21 @@ function CreateBillForm({ db, userId, setView, lrs, showAlert }) {
             showAlert("Validation Error", "Please provide a bill number and select at least one LR.");
             return;
         }
-        const totalAmount = selectedLrs.reduce((sum, lrId) => sum + (parseFloat(lrs.find(l => l.id === lrId)?.billDetails?.amount) || 0), 0);
+
+        // --- MODIFICATION START: Use conditional rate for total amount calculation ---
+        const totalAmount = selectedLrs.reduce((sum, lrId) => {
+            const lr = lrs.find(l => l.id === lrId);
+            if (!lr) return sum;
+
+            const freight = parseFloat(lr.billDetails?.amount) || 0;
+            const ratePerTon = parseFloat(lr.billDetails?.ratePerTon) || 0;
+            // Use ratePerTon if it exists and is greater than 0, otherwise fallback to the freight amount.
+            const billableAmount = ratePerTon > 0 ? ratePerTon : freight;
+            
+            return sum + billableAmount;
+        }, 0);
+        // --- MODIFICATION END ---
+        
         const newBill = { billNumber, billDate, companyName, billTo, partyName, lrIds: selectedLrs, totalAmount, status: 'Due' };
         const batch = db.batch();
         const newBillRef = db.collection('users').doc(userId).collection('bills').doc();
@@ -700,11 +729,19 @@ function CreateBillForm({ db, userId, setView, lrs, showAlert }) {
             <Section title={`Select Unbilled LRs for ${companyName}`}>
                 {partyName && <p className="font-semibold text-indigo-600 mb-2">Billing To Party: {partyName}</p>}
                 <div className="max-h-60 overflow-y-auto space-y-2 p-2 bg-slate-50 border rounded-md">
-                    {unbilledLrs.length > 0 ? unbilledLrs.map(lr =>
-                        <div key={lr.id} onClick={() => handleLrSelection(lr.id)} className={`p-3 border rounded-md cursor-pointer transition-colors ${selectedLrs.includes(lr.id) ? 'bg-indigo-100 border-indigo-300' : 'bg-white hover:bg-indigo-50'}`}>
-                            <p className="font-semibold">LR #{lr.lrNumber} - <span className="font-normal">{billTo === 'Consignor' ? lr.consignor.name : lr.consignee.name}</span> - <span className="font-bold">₹{lr.billDetails.amount}</span></p>
-                        </div>
-                    ) : <p className="text-slate-500 text-center p-4">No unbilled LRs for this company.</p>}
+                    {unbilledLrs.length > 0 ? unbilledLrs.map(lr => {
+                        // --- MODIFICATION START: Use conditional rate for display in bill creation ---
+                        const freight = lr.billDetails?.amount || '0';
+                        const ratePerTon = lr.billDetails?.ratePerTon;
+                        const displayAmount = (ratePerTon && parseFloat(ratePerTon) > 0) ? ratePerTon : freight;
+                        // --- MODIFICATION END ---
+
+                        return (
+                            <div key={lr.id} onClick={() => handleLrSelection(lr.id)} className={`p-3 border rounded-md cursor-pointer transition-colors ${selectedLrs.includes(lr.id) ? 'bg-indigo-100 border-indigo-300' : 'bg-white hover:bg-indigo-50'}`}>
+                                <p className="font-semibold">LR #{lr.lrNumber} - <span className="font-normal">{billTo === 'Consignor' ? lr.consignor.name : lr.consignee.name}</span> - <span className="font-bold">₹{displayAmount}</span></p>
+                            </div>
+                        )
+                    }) : <p className="text-slate-500 text-center p-4">No unbilled LRs for this company.</p>}
                 </div>
             </Section>
             <div className="flex justify-end gap-4">
