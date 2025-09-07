@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import jsPDF from "jspdf";
-import autoTable from 'jspdf-autotable';
-import { db, auth } from './firebaseConfig.js';
+import { initializeApp } from "firebase/app";
+import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { getFirestore, collection, onSnapshot, doc, addDoc, setDoc, updateDoc, deleteDoc, where, query, writeBatch, getDocs } from "firebase/firestore";
+
+// Note: jsPDF, autoTable, and XLSX are now loaded dynamically from a CDN.
 
 // --- Icon Components ---
 const TruckIcon = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M5 18H3c-.6 0-1-.4-1-1V7c0-.6.4-1 1-1h10c.6 0 1 .4 1 1v11" /><path d="M14 9h4l4 4v4h-8v-4l-4-4Z" /><path d="M10 18h4" /><circle cx="7" cy="18" r="2" /><circle cx="17" cy="18" r="2" /></svg>;
@@ -104,6 +106,7 @@ const companyConfigs = {
 // --- PDF Generation Functions ---
 const generatePdfForBill = (bill, lrsInBill, showAlert) => {
     try {
+        const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         const config = companyConfigs[bill.companyName];
         if (!config) { showAlert("Config Error", `No bill format configured for ${bill.companyName}`); return; }
@@ -163,7 +166,6 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
             const primaryTruck = truckNumbersArray[0] || 'N/A';
             const truckNumbersString = truckNumbersArray.join(', ');
 
-            // --- FINAL LOGIC: Properly calculate Rate and Freight for the PDF table ---
             const originalFreight = Number(lr.billDetails?.amount) || 0;
             const ratePerTon = Number(lr.billDetails?.ratePerTon) || 0;
             const weight = Number(lr.loadingDetails?.weight) || 0;
@@ -171,11 +173,9 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
             let rateForPdf, freightForPdf;
 
             if (ratePerTon > 0 && weight > 0) {
-                // Scenario 1: Use ratePerTon as the rate and calculate the final freight.
                 rateForPdf = ratePerTon;
                 freightForPdf = Math.round(ratePerTon * weight);
             } else {
-                // Scenario 2: The original freight is used for BOTH rate and final freight.
                 rateForPdf = originalFreight;
                 freightForPdf = originalFreight;
             }
@@ -196,8 +196,8 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
                 lr.loadingDetails?.loadingPoint || '',
                 lr.loadingDetails?.unloadingPoint || '',
                 lr.loadingDetails?.weight || '',
-                displayRate,      // Correct Rate column
-                displayFreight,   // Correct Freight column
+                displayRate,
+                displayFreight,
                 truckNumbersString
             ];
         });
@@ -208,7 +208,7 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
             maximumFractionDigits: 2
         });
 
-        autoTable(doc, {
+        doc.autoTable({
             startY: yPos + 5,
             head: [['LR NO', 'DATE', 'FROM', 'TO', 'WEIGHT', 'RATE', 'FREIGHT', 'TRUCK NO']],
             body: tableBody,
@@ -271,6 +271,7 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
 
 const generateDueStatementPDF = (party, bills, lrs, showAlert) => {
     try {
+        const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         const config = companyConfigs[party.companyName] || { header: party.companyName };
         
@@ -323,7 +324,7 @@ const generateDueStatementPDF = (party, bills, lrs, showAlert) => {
             maximumFractionDigits: 2
         });
 
-        autoTable(doc, {
+        doc.autoTable({
             startY: y + 10,
             head: [['BILL DATE', 'BILL NO.', 'DESTINATION', 'TRUCK NO(S)', 'AMOUNT']],
             body: tableBody,
@@ -456,7 +457,7 @@ function LrView({ lrs, bills, handleEditLr, handleDelete, setView, handleDeleteR
     );
 }
 
-function LrForm({ db, userId, setView, parties, existingLr, showAlert, onEditParty }) {
+function LrForm({ db, userId, setView, parties, existingLr, showAlert, onEditParty, handleSaveLr }) {
     const getInitialData = useCallback(() => ({
         companyName: 'SAI KUMAR TRANSPORT',
         lrNumber: '',
@@ -512,13 +513,14 @@ function LrForm({ db, userId, setView, parties, existingLr, showAlert, onEditPar
             }
         };
         
-        const lrsCollection = db.collection('users').doc(userId).collection('lrs');
         try {
             if (existingLr && existingLr.id) {
                 const { id, ...dataToSave } = finalFormData;
-                await lrsCollection.doc(id).set(dataToSave);
+                const lrRef = doc(db, 'users', userId, 'lrs', id);
+                await setDoc(lrRef, dataToSave);
             } else {
-                await lrsCollection.add(finalFormData);
+                const lrsCollectionRef = collection(db, 'users', userId, 'lrs');
+                await addDoc(lrsCollectionRef, finalFormData);
             }
             showAlert("Success", `LR #${finalFormData.lrNumber} saved successfully!`);
             setView('lrs');
@@ -588,18 +590,22 @@ function LrForm({ db, userId, setView, parties, existingLr, showAlert, onEditPar
     );
 }
 
-function BillingView({ setView, bills, lrs, db, userId, handleDeleteRequest, showAlert, selectedMonth, setSelectedMonth }) {
+function BillingView({ db, userId, setView, bills, lrs, handleDeleteRequest, showAlert, selectedMonth, setSelectedMonth }) {
     const handleDeleteBill = async (billId, lrIds) => {
-        const batch = db.batch();
-        const billRef = db.collection('users').doc(userId).collection('bills').doc(billId);
+        const batch = writeBatch(db);
+        const billRef = doc(db, 'users', userId, 'bills', billId);
         batch.delete(billRef);
         lrIds.forEach(lrId => {
-            const lrRef = db.collection('users').doc(userId).collection('lrs').doc(lrId);
+            const lrRef = doc(db, 'users', userId, 'lrs', lrId);
             batch.update(lrRef, { isBilled: false });
         });
         await batch.commit();
     };
     const handleDownload = (bill) => {
+        if (!window.jspdf || !window.jspdf.jsPDF) {
+            showAlert("Library Error", "The PDF library (jsPDF) is not available.");
+            return;
+        }
         const lrsInBill = bill.lrIds.map(id => lrs.find(lr => lr.id === id)).filter(Boolean);
         if (lrsInBill.length > 0) {
             generatePdfForBill(bill, lrsInBill, showAlert);
@@ -609,7 +615,8 @@ function BillingView({ setView, bills, lrs, db, userId, handleDeleteRequest, sho
     };
     const handleMarkAsPaid = async (billId) => {
         try {
-            await db.collection('users').doc(userId).collection('bills').doc(billId).update({ status: 'Paid' });
+            const billRef = doc(db, 'users', userId, 'bills', billId);
+            await updateDoc(billRef, { status: 'Paid' });
             showAlert("Success", "Bill has been marked as paid.");
         } catch (error) {
             console.error("Error marking bill as paid:", error);
@@ -623,15 +630,42 @@ function BillingView({ setView, bills, lrs, db, userId, handleDeleteRequest, sho
                 if (!selectedMonth) return true;
                 return bill.billDate.startsWith(selectedMonth);
             })
-            .sort((a, b) => Number(a.billNumber) - Number(b.billNumber));
+            .sort((a, b) => Number(b.billNumber) - Number(a.billNumber));
     }, [bills, selectedMonth]);
+
+    const handleExportBills = () => {
+        if (sortedBills.length === 0) {
+            showAlert("No Data", "There are no bills in the current view to export.");
+            return;
+        }
+        if (typeof window.XLSX === 'undefined') {
+            showAlert("Library Error", "The XLSX library is not available.");
+            return;
+        }
+
+        const dataToExport = sortedBills.map(bill => ({
+            "Bill Number": bill.billNumber,
+            "Bill Date": bill.billDate,
+            "Company": bill.companyName,
+            "Party Name": bill.partyName,
+            "Total Amount": bill.totalAmount.toFixed(2),
+            "Status": bill.status || 'Due',
+            "LR IDs": bill.lrIds.join(', ')
+        }));
+
+        const worksheet = window.XLSX.utils.json_to_sheet(dataToExport);
+        const workbook = window.XLSX.utils.book_new();
+        window.XLSX.utils.book_append_sheet(workbook, worksheet, "Bills");
+        window.XLSX.writeFile(workbook, `Bills_Export_${selectedMonth || 'All-Time'}.xlsx`);
+    };
     
     return (
         <div>
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-bold">Billing</h2>
-                <div className="flex gap-2 items-center">
+                <div className="flex flex-wrap gap-2 items-center">
                     <Input label="Filter by Month" type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} />
+                    <button onClick={handleExportBills} className="btn-secondary flex items-center gap-2 mt-6"><DownloadIcon/>Export to Excel</button>
                     <button onClick={() => setView('create_bill')} className="btn-primary flex items-center gap-2 mt-6"><PlusCircleIcon/>Create Bill</button>
                 </div>
             </div>
@@ -660,7 +694,7 @@ function BillingView({ setView, bills, lrs, db, userId, handleDeleteRequest, sho
                     </div>
                 ))}
             </div>
-            <style>{`.btn-primary{background:#4F46E5; color:white; padding:8px 16px; border-radius:8px; font-weight:500;} .btn-icon{background:#E5E7EB; color:#374151; padding:8px; border-radius:8px;} .btn-icon-danger{background:#FEE2E2; color:#DC2626; padding:8px; border-radius:8px;}`}</style>
+            <style>{`.btn-primary{background:#4F46E5; color:white; padding:8px 16px; border-radius:8px; font-weight:500;} .btn-secondary { background-color: #E5E7EB; color: #374151; padding: 8px 16px; border-radius: 8px; font-weight: 500; } .btn-icon{background:#E5E7EB; color:#374151; padding:8px; border-radius:8px;} .btn-icon-danger{background:#FEE2E2; color:#DC2626; padding:8px; border-radius:8px;}`}</style>
         </div>
     );
 }
@@ -693,7 +727,6 @@ function CreateBillForm({ db, userId, setView, lrs, showAlert }) {
             return;
         }
 
-        // --- FINAL LOGIC: Calculate total amount based on ratePerTon or fallback to freight ---
         const totalAmount = selectedLrs.reduce((sum, lrId) => {
             const lr = lrs.find(l => l.id === lrId);
             if (!lr) return sum;
@@ -704,20 +737,21 @@ function CreateBillForm({ db, userId, setView, lrs, showAlert }) {
 
             let billableAmount;
             if (ratePerTon > 0 && weight > 0) {
-                billableAmount = Math.round(ratePerTon * weight); // Calculate and round
+                billableAmount = Math.round(ratePerTon * weight);
             } else {
-                billableAmount = originalFreight; // Fallback to original freight amount
+                billableAmount = originalFreight;
             }
             
             return sum + billableAmount;
         }, 0);
         
         const newBill = { billNumber, billDate, companyName, billTo, partyName, lrIds: selectedLrs, totalAmount, status: 'Due' };
-        const batch = db.batch();
-        const newBillRef = db.collection('users').doc(userId).collection('bills').doc();
+        
+        const batch = writeBatch(db);
+        const newBillRef = doc(collection(db, 'users', userId, 'bills'));
         batch.set(newBillRef, newBill);
         selectedLrs.forEach(lrId => {
-            const lrRef = db.collection('users').doc(userId).collection('lrs').doc(lrId);
+            const lrRef = doc(db, 'users', userId, 'lrs', lrId);
             batch.update(lrRef, { isBilled: true });
         });
         await batch.commit();
@@ -740,7 +774,6 @@ function CreateBillForm({ db, userId, setView, lrs, showAlert }) {
                 {partyName && <p className="font-semibold text-indigo-600 mb-2">Billing To Party: {partyName}</p>}
                 <div className="max-h-60 overflow-y-auto space-y-2 p-2 bg-slate-50 border rounded-md">
                     {unbilledLrs.length > 0 ? unbilledLrs.map(lr => {
-                        // --- FINAL LOGIC: Calculate display amount for the selection list ---
                         const originalFreight = parseFloat(lr.billDetails?.amount) || 0;
                         const ratePerTon = parseFloat(lr.billDetails?.ratePerTon) || 0;
                         const weight = parseFloat(lr.loadingDetails?.weight) || 0;
@@ -769,7 +802,7 @@ function CreateBillForm({ db, userId, setView, lrs, showAlert }) {
     );
 }
 
-function PartiesView({ parties, db, userId, handleDelete, handleDeleteRequest, showAlert, onEditParty }) {
+function PartiesView({ parties, handleDelete, handleDeleteRequest, onEditParty }) {
     return (
         <div>
             <div className="flex justify-between items-center mb-4">
@@ -800,7 +833,7 @@ function PartiesView({ parties, db, userId, handleDelete, handleDeleteRequest, s
 }
 
 function StatementView({ bills, lrs, parties, showAlert }) {
-    const dueBillsByPartyAndCompany = bills.filter(b => b.status === 'Due').reduce((acc, bill) => {
+    const dueBillsByPartyAndCompany = bills.filter(b => b.status === 'Due' || !b.status).reduce((acc, bill) => {
         const party = parties.find(p => p.name === bill.partyName);
         if (party) {
             const key = `${party.id}-${bill.companyName}`;
@@ -819,6 +852,10 @@ function StatementView({ bills, lrs, parties, showAlert }) {
     }, {});
     
     const handleDownload = (statementGroup) => {
+        if (!window.jspdf || !window.jspdf.jsPDF) {
+            showAlert("Library Error", "The PDF library (jsPDF) is not available.");
+            return;
+        }
         const partyInfo = {
             name: statementGroup.partyName,
             address: statementGroup.partyAddress,
@@ -826,10 +863,44 @@ function StatementView({ bills, lrs, parties, showAlert }) {
         };
         generateDueStatementPDF(partyInfo, statementGroup.bills, lrs, showAlert);
     };
+
+    const handleExportAllDues = () => {
+        if (typeof window.XLSX === 'undefined') {
+            showAlert("Library Error", "The XLSX library is not available.");
+            return;
+        }
+
+        const allDueBills = Object.values(dueBillsByPartyAndCompany).flatMap(group => 
+            group.bills.map(bill => ({
+                "Party Name": group.partyName,
+                "Company": group.companyName,
+                "Bill Number": bill.billNumber,
+                "Bill Date": bill.billDate,
+                "Due Amount": bill.totalAmount.toFixed(2),
+            }))
+        );
+
+        if (allDueBills.length === 0) {
+            showAlert("No Data", "There are no due statements to export.");
+            return;
+        }
+
+        const worksheet = window.XLSX.utils.json_to_sheet(allDueBills);
+        const workbook = window.XLSX.utils.book_new();
+        window.XLSX.utils.book_append_sheet(workbook, worksheet, "Due Statements");
+        window.XLSX.writeFile(workbook, "Due_Statements_Export.xlsx");
+    };
     
     return (
         <div>
-            <h2 className="text-2xl font-bold mb-4">Due Statements</h2>
+            <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-bold">Due Statements</h2>
+                <button onClick={handleExportAllDues} className="btn-secondary flex items-center gap-2">
+                    <DownloadIcon className="h-5 w-5"/>
+                    Export All Dues to Excel
+                </button>
+            </div>
+
             <div className="space-y-4">
                 {Object.keys(dueBillsByPartyAndCompany).length > 0 ? Object.values(dueBillsByPartyAndCompany).map(statementGroup => (
                     <div key={`${statementGroup.partyId}-${statementGroup.companyName}`} className="p-4 border rounded-lg bg-slate-50 transition-shadow hover:shadow-md">
@@ -851,28 +922,32 @@ function StatementView({ bills, lrs, parties, showAlert }) {
                     </div>
                 )) : <p className="text-slate-500 text-center p-4">No due statements to show.</p>}
             </div>
-            <style>{`.btn-primary{background:#4F46E5; color:white; padding:8px 16px; border-radius:8px; font-weight:500}`}</style>
+            <style>{`.btn-primary{background:#4F46E5; color:white; padding:8px 16px; border-radius:8px; font-weight:500} .btn-secondary { background-color: #E5E7EB; color: #374151; padding: 8px 16px; border-radius: 8px; font-weight: 500; }`}</style>
         </div>
     );
 }
 
 // --- Login Screen Component ---
-function LoginScreen({ showAlert }) {
+function LoginScreen({ auth, showAlert }) {
     const [isRegistering, setIsRegistering] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     
     const handleAuthAction = async (e) => {
         e.preventDefault();
+        if (!auth) {
+            showAlert("Initialization Error", "Authentication service is not ready.");
+            return;
+        }
         if (!email || !password) {
             showAlert("Authentication Error", "Please enter both email and password.");
             return;
         }
         try {
             if (isRegistering) {
-                await auth.createUserWithEmailAndPassword(email, password);
+                await createUserWithEmailAndPassword(auth, email, password);
             } else {
-                await auth.signInWithEmailAndPassword(email, password);
+                await signInWithEmailAndPassword(auth, email, password);
             }
         } catch (error) {
             console.error("Authentication Error:", error);
@@ -919,6 +994,7 @@ function LoginScreen({ showAlert }) {
     );
 }
 
+
 // --- Main App Component ---
 function App() {
     const [view, setView] = useState(() => localStorage.getItem('currentView') || 'lrs');
@@ -933,15 +1009,67 @@ function App() {
     const [editingParty, setEditingParty] = useState(null);
     const [isPartyModalOpen, setIsPartyModalOpen] = useState(false);
     const [dataLoaded, setDataLoaded] = useState(false);
+    const [scriptsLoaded, setScriptsLoaded] = useState(false);
     const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
     
+    const [auth, setAuth] = useState(null);
+    const [db, setDb] = useState(null);
+    const [configError, setConfigError] = useState(null);
     
     const showAlert = useCallback((title, message) => {
         setAlertInfo({ title, message });
     }, []);
     
+    // Effect for loading external scripts for PDF/Excel export
     useEffect(() => {
-        const unsubscribe = auth.onAuthStateChanged((user) => {
+        const loadScript = (src) => new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = src;
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+
+        Promise.all([
+            loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"),
+            loadScript("https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js")
+        ]).then(() => {
+            const autoTableScript = document.createElement('script');
+            autoTableScript.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js";
+            autoTableScript.onload = () => setScriptsLoaded(true);
+            document.head.appendChild(autoTableScript);
+        }).catch(error => {
+            console.error("Failed to load external scripts:", error);
+            showAlert("Loading Error", "Could not load required libraries for PDF/Excel export.");
+        });
+    }, [showAlert]);
+
+    // Effect for initializing Firebase
+    useEffect(() => {
+        try {
+            if (typeof __firebase_config__ === 'undefined' || !__firebase_config__) {
+                setConfigError("Firebase configuration is missing.");
+                return;
+            }
+            const firebaseConfig = JSON.parse(__firebase_config__);
+            if (!firebaseConfig.apiKey) {
+                 setConfigError("Firebase API key is invalid or missing from configuration.");
+                 return;
+            }
+            const app = initializeApp(firebaseConfig);
+            const authInstance = getAuth(app);
+            const dbInstance = getFirestore(app);
+            setAuth(authInstance);
+            setDb(dbInstance);
+        } catch (error) {
+            console.error("Firebase initialization error:", error);
+            setConfigError("Failed to initialize Firebase. Check console for details.");
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!auth) return;
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
             setUser(user);
             setLoading(false);
             if (!user) {
@@ -950,23 +1078,23 @@ function App() {
             }
         });
         return () => unsubscribe();
-    }, []);
+    }, [auth]);
     
     useEffect(() => {
-        if (!user) {
+        if (!user || !db) {
             setDataLoaded(false);
             return;
         }
         
-        const collections = {
+        const collectionsToSync = {
             lrs: setLrs,
             bills: setBills,
             parties: setParties
         };
         
-        const unsubscribers = Object.entries(collections).map(([path, setter]) => {
-            const query = db.collection('users').doc(user.uid).collection(path);
-            return query.onSnapshot((snapshot) => {
+        const unsubscribers = Object.entries(collectionsToSync).map(([path, setter]) => {
+            const collRef = collection(db, 'users', user.uid, path);
+            return onSnapshot(collRef, (snapshot) => {
                 const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
                 setter(data);
                 setDataLoaded(true);
@@ -977,7 +1105,8 @@ function App() {
         });
         
         return () => unsubscribers.forEach(unsub => unsub());
-    }, [user, showAlert]);
+    }, [user, db, showAlert]);
+
     const handleSetView = (newView) => {
         setEditingLr(null);
         localStorage.removeItem('editingLrId');
@@ -1020,14 +1149,15 @@ function App() {
     
     const handleCancelDelete = () => setConfirmation(null);
     const handleDelete = useCallback(async (id, collectionName) => {
-        if (!user) return;
+        if (!user || !db) return;
         try {
-            await db.collection('users').doc(user.uid).collection(collectionName).doc(id).delete();
+            const docRef = doc(db, 'users', user.uid, collectionName, id);
+            await deleteDoc(docRef);
         } catch (error) {
             console.error(`Delete Error in ${collectionName}:`, error);
             showAlert("Deletion Failed", `Could not delete the item from ${collectionName}.`);
         }
-    }, [user, showAlert]);
+    }, [user, db, showAlert]);
     
     const handleOpenPartyModal = (party = null) => {
         setEditingParty(party);
@@ -1035,71 +1165,51 @@ function App() {
     };
     
     const handleSaveParty = async (partyData) => {
-    if (!user) {
-        showAlert("Error", "You must be logged in.");
-        return;
-    }
-
-    try {
-        // This logic handles UPDATING an existing party
-        if (partyData.id) {
-            const { id, ...dataToSave } = partyData;
-            const batch = db.batch();
-
-            // Before updating, we need the original party name to find related docs
-            const originalParty = parties.find(p => p.id === id);
-            if (!originalParty) {
-                showAlert("Error", "Could not find the original party data. Update failed.");
-                return;
-            }
-            const originalName = originalParty.name;
-
-            // 1. Update the main party document itself
-            const partyRef = db.collection('users').doc(user.uid).collection('parties').doc(id);
-            batch.update(partyRef, dataToSave);
-
-            // 2. Find and update all LRs where this party was the consignor
-            const lrsAsConsignorQuery = db.collection('users').doc(user.uid).collection('lrs').where('consignor.name', '==', originalName);
-            const lrsAsConsignorSnapshot = await lrsAsConsignorQuery.get();
-            lrsAsConsignorSnapshot.forEach(doc => {
-                batch.update(doc.ref, { consignor: dataToSave });
-            });
-
-            // 3. Find and update all LRs where this party was the consignee
-            const lrsAsConsigneeQuery = db.collection('users').doc(user.uid).collection('lrs').where('consignee.name', '==', originalName);
-            const lrsAsConsigneeSnapshot = await lrsAsConsigneeQuery.get();
-            lrsAsConsigneeSnapshot.forEach(doc => {
-                batch.update(doc.ref, { consignee: dataToSave });
-            });
-
-            // 4. Find and update all Bills for this party
-            const billsQuery = db.collection('users').doc(user.uid).collection('bills').where('partyName', '==', originalName);
-            const billsSnapshot = await billsQuery.get();
-            billsSnapshot.forEach(doc => {
-                // In bills, we only store the partyName, so we only update that.
-                batch.update(doc.ref, { partyName: dataToSave.name });
-            });
-            
-            // 5. Commit all the changes at once
-            await batch.commit();
-            showAlert("Success", "Party updated successfully across all records.");
-
-        } else {
-            // This logic handles ADDING a new party (remains the same)
-            await db.collection('users').doc(user.uid).collection('parties').add(partyData);
-            showAlert("Success", "New party added successfully.");
+        if (!user || !db) {
+            showAlert("Error", "You must be logged in and database must be available.");
+            return;
         }
-    } catch (error) {
-        console.error("Error saving party and related documents:", error);
-        showAlert("Save Failed", "Could not save the party details. Check the console for more info.");
-    } finally {
-        // This ensures the modal always closes after the operation
-        setIsPartyModalOpen(false);
-        setEditingParty(null);
-    }
-};
+
+        try {
+            if (partyData.id) {
+                const { id, ...dataToSave } = partyData;
+                const batch = writeBatch(db);
+                const originalParty = parties.find(p => p.id === id);
+                if (!originalParty) {
+                    showAlert("Error", "Could not find the original party data. Update failed.");
+                    return;
+                }
+                const originalName = originalParty.name;
+                const partyRef = doc(db, 'users', user.uid, 'parties', id);
+                batch.update(partyRef, dataToSave);
+                const lrsCollectionRef = collection(db, 'users', user.uid, 'lrs');
+                const billsCollectionRef = collection(db, 'users', user.uid, 'bills');
+                const lrsAsConsignorQuery = query(lrsCollectionRef, where('consignor.name', '==', originalName));
+                const lrsAsConsignorSnapshot = await getDocs(lrsAsConsignorQuery);
+                lrsAsConsignorSnapshot.forEach(doc => { batch.update(doc.ref, { consignor: dataToSave }); });
+                const lrsAsConsigneeQuery = query(lrsCollectionRef, where('consignee.name', '==', originalName));
+                const lrsAsConsigneeSnapshot = await getDocs(lrsAsConsigneeQuery);
+                lrsAsConsigneeSnapshot.forEach(doc => { batch.update(doc.ref, { consignee: dataToSave }); });
+                const billsQuery = query(billsCollectionRef, where('partyName', '==', originalName));
+                const billsSnapshot = await getDocs(billsQuery);
+                billsSnapshot.forEach(doc => { batch.update(doc.ref, { partyName: dataToSave.name }); });
+                await batch.commit();
+                showAlert("Success", "Party updated successfully across all records.");
+            } else {
+                const partiesCollectionRef = collection(db, 'users', user.uid, 'parties');
+                await addDoc(partiesCollectionRef, partyData);
+                showAlert("Success", "New party added successfully.");
+            }
+        } catch (error) {
+            console.error("Error saving party and related documents:", error);
+            showAlert("Save Failed", "Could not save the party details. Check the console for more info.");
+        } finally {
+            setIsPartyModalOpen(false);
+            setEditingParty(null);
+        }
+    };
     const handleLogout = () => {
-        auth.signOut();
+        signOut(auth);
     };
     
     const renderView = () => {
@@ -1113,12 +1223,22 @@ function App() {
             case 'lrs': default: return <LrView {...props} handleEditLr={handleEditLr} />;
         }
     };
-    if (loading || (!dataLoaded && user)) {
-        return <div className="min-h-screen flex items-center justify-center bg-slate-50"><p className="text-xl font-semibold text-slate-500">Loading your data...</p></div>;
+    
+    if (configError) {
+        return <div className="min-h-screen flex items-center justify-center bg-red-50 text-red-700 p-4">
+            <div className="text-center">
+                <h2 className="text-2xl font-bold mb-2">Configuration Error</h2>
+                <p>{configError}</p>
+            </div>
+        </div>;
+    }
+
+    if (loading || (!dataLoaded && user) || !scriptsLoaded) {
+        return <div className="min-h-screen flex items-center justify-center bg-slate-50"><p className="text-xl font-semibold text-slate-500">Loading Application...</p></div>;
     }
     
     if (!user) {
-        return <LoginScreen showAlert={showAlert} />;
+        return <LoginScreen auth={auth} showAlert={showAlert} />;
     }
     
     return (
@@ -1147,3 +1267,4 @@ function App() {
 }
 
 export default App;
+
