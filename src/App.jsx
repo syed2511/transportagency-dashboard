@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { initializeApp } from "firebase/app";
-import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "firebase/auth";
-import { getFirestore, collection, onSnapshot, doc, addDoc, setDoc, updateDoc, deleteDoc, where, query, writeBatch, getDocs } from "firebase/firestore";
+import { db, auth } from './firebaseConfig.js'; // Assuming this file exports initialized db and auth
+import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { collection, onSnapshot, doc, addDoc, setDoc, updateDoc, deleteDoc, where, query, writeBatch, getDocs } from "firebase/firestore";
 
 // Note: jsPDF, autoTable, and XLSX are now loaded dynamically from a CDN.
 
@@ -72,7 +72,7 @@ const companyConfigs = {
     "GLOBAL LOGISTICS": {
         header: "GLOBAL LOGISTICS",
         prefix: "GL",
-        address: "2-42-69/3 ILTD JUNCTION, RAJAMAHENDRAWARAM",
+        address: "2-42-69/3 ILTD JUNCTION, RAJAMAHENDRAVARAM",
         enrollmentNo: "37AHKPJ7246C1ZB",
         panNo: "AHKPJ7246C",
         phone: "9885086504, 7396579956",
@@ -457,7 +457,7 @@ function LrView({ lrs, bills, handleEditLr, handleDelete, setView, handleDeleteR
     );
 }
 
-function LrForm({ db, userId, setView, parties, existingLr, showAlert, onEditParty, handleSaveLr }) {
+function LrForm({ userId, setView, parties, existingLr, showAlert, onEditParty }) {
     const getInitialData = useCallback(() => ({
         companyName: 'SAI KUMAR TRANSPORT',
         lrNumber: '',
@@ -590,7 +590,7 @@ function LrForm({ db, userId, setView, parties, existingLr, showAlert, onEditPar
     );
 }
 
-function BillingView({ db, userId, setView, bills, lrs, handleDeleteRequest, showAlert, selectedMonth, setSelectedMonth }) {
+function BillingView({ userId, setView, bills, lrs, handleDeleteRequest, showAlert, selectedMonth, setSelectedMonth }) {
     const handleDeleteBill = async (billId, lrIds) => {
         const batch = writeBatch(db);
         const billRef = doc(db, 'users', userId, 'bills', billId);
@@ -699,7 +699,7 @@ function BillingView({ db, userId, setView, bills, lrs, handleDeleteRequest, sho
     );
 }
 
-function CreateBillForm({ db, userId, setView, lrs, showAlert }) {
+function CreateBillForm({ userId, setView, lrs, showAlert }) {
     const [billNumber, setBillNumber] = useState('');
     const [billDate, setBillDate] = useState(new Date().toISOString().split('T')[0]);
     const [selectedLrs, setSelectedLrs] = useState([]);
@@ -928,17 +928,13 @@ function StatementView({ bills, lrs, parties, showAlert }) {
 }
 
 // --- Login Screen Component ---
-function LoginScreen({ auth, showAlert }) {
+function LoginScreen({ showAlert }) {
     const [isRegistering, setIsRegistering] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     
     const handleAuthAction = async (e) => {
         e.preventDefault();
-        if (!auth) {
-            showAlert("Initialization Error", "Authentication service is not ready.");
-            return;
-        }
         if (!email || !password) {
             showAlert("Authentication Error", "Please enter both email and password.");
             return;
@@ -1009,20 +1005,21 @@ function App() {
     const [editingParty, setEditingParty] = useState(null);
     const [isPartyModalOpen, setIsPartyModalOpen] = useState(false);
     const [dataLoaded, setDataLoaded] = useState(false);
-    const [scriptsLoaded, setScriptsLoaded] = useState(false);
+    const [scriptsLoaded, setScriptsLoaded] = useState(false); // <-- NEW: State for CDN scripts
     const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
     
-    const [auth, setAuth] = useState(null);
-    const [db, setDb] = useState(null);
-    const [configError, setConfigError] = useState(null);
     
     const showAlert = useCallback((title, message) => {
         setAlertInfo({ title, message });
     }, []);
     
-    // Effect for loading external scripts for PDF/Excel export
+    // --- NEW: Effect for loading external scripts for PDF/Excel export ---
     useEffect(() => {
         const loadScript = (src) => new Promise((resolve, reject) => {
+            if (document.querySelector(`script[src="${src}"]`)) {
+                resolve();
+                return;
+            }
             const script = document.createElement('script');
             script.src = src;
             script.onload = resolve;
@@ -1030,45 +1027,18 @@ function App() {
             document.head.appendChild(script);
         });
 
-        Promise.all([
-            loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"),
-            loadScript("https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js")
-        ]).then(() => {
-            const autoTableScript = document.createElement('script');
-            autoTableScript.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js";
-            autoTableScript.onload = () => setScriptsLoaded(true);
-            document.head.appendChild(autoTableScript);
-        }).catch(error => {
-            console.error("Failed to load external scripts:", error);
-            showAlert("Loading Error", "Could not load required libraries for PDF/Excel export.");
-        });
+        loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js")
+            .then(() => loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"))
+            .then(() => loadScript("https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"))
+            .then(() => setScriptsLoaded(true))
+            .catch(error => {
+                console.error("Failed to load external scripts:", error);
+                showAlert("Loading Error", "Could not load required libraries for PDF/Excel export.");
+            });
     }, [showAlert]);
-
-    // Effect for initializing Firebase
+    
+    // --- UPDATED: Auth listener with modern syntax ---
     useEffect(() => {
-        try {
-            if (typeof __firebase_config__ === 'undefined' || !__firebase_config__) {
-                setConfigError("Firebase configuration is missing.");
-                return;
-            }
-            const firebaseConfig = JSON.parse(__firebase_config__);
-            if (!firebaseConfig.apiKey) {
-                 setConfigError("Firebase API key is invalid or missing from configuration.");
-                 return;
-            }
-            const app = initializeApp(firebaseConfig);
-            const authInstance = getAuth(app);
-            const dbInstance = getFirestore(app);
-            setAuth(authInstance);
-            setDb(dbInstance);
-        } catch (error) {
-            console.error("Firebase initialization error:", error);
-            setConfigError("Failed to initialize Firebase. Check console for details.");
-        }
-    }, []);
-
-    useEffect(() => {
-        if (!auth) return;
         const unsubscribe = onAuthStateChanged(auth, (user) => {
             setUser(user);
             setLoading(false);
@@ -1078,34 +1048,36 @@ function App() {
             }
         });
         return () => unsubscribe();
-    }, [auth]);
+    }, []);
     
+    // --- UPDATED: Data listeners with modern syntax ---
     useEffect(() => {
-        if (!user || !db) {
+        if (!user) {
             setDataLoaded(false);
+            setLrs([]); setBills([]); setParties([]);
             return;
         }
         
-        const collectionsToSync = {
+        const collectionsToWatch = {
             lrs: setLrs,
             bills: setBills,
             parties: setParties
         };
         
-        const unsubscribers = Object.entries(collectionsToSync).map(([path, setter]) => {
-            const collRef = collection(db, 'users', user.uid, path);
-            return onSnapshot(collRef, (snapshot) => {
+        const unsubscribers = Object.entries(collectionsToWatch).map(([path, setter]) => {
+            const q = query(collection(db, 'users', user.uid, path));
+            return onSnapshot(q, (snapshot) => {
                 const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
                 setter(data);
-                setDataLoaded(true);
             }, (error) => {
                 console.error(`Firestore listener error on ${path}:`, error);
                 showAlert("Database Error", `Failed to load data for ${path}. Please refresh the page.`);
             });
         });
         
+        setDataLoaded(true);
         return () => unsubscribers.forEach(unsub => unsub());
-    }, [user, db, showAlert]);
+    }, [user, showAlert]);
 
     const handleSetView = (newView) => {
         setEditingLr(null);
@@ -1148,8 +1120,10 @@ function App() {
     };
     
     const handleCancelDelete = () => setConfirmation(null);
+
+    // --- UPDATED: Delete function with modern syntax ---
     const handleDelete = useCallback(async (id, collectionName) => {
-        if (!user || !db) return;
+        if (!user) return;
         try {
             const docRef = doc(db, 'users', user.uid, collectionName, id);
             await deleteDoc(docRef);
@@ -1157,47 +1131,60 @@ function App() {
             console.error(`Delete Error in ${collectionName}:`, error);
             showAlert("Deletion Failed", `Could not delete the item from ${collectionName}.`);
         }
-    }, [user, db, showAlert]);
+    }, [user, showAlert]);
     
     const handleOpenPartyModal = (party = null) => {
         setEditingParty(party);
         setIsPartyModalOpen(true);
     };
     
+    // --- UPDATED: Save Party function with cascading updates and modern syntax ---
     const handleSaveParty = async (partyData) => {
-        if (!user || !db) {
-            showAlert("Error", "You must be logged in and database must be available.");
+        if (!user) {
+            showAlert("Error", "You must be logged in.");
             return;
         }
 
         try {
-            if (partyData.id) {
+            if (partyData.id) { // Logic for UPDATING an existing party
                 const { id, ...dataToSave } = partyData;
                 const batch = writeBatch(db);
+                
                 const originalParty = parties.find(p => p.id === id);
-                if (!originalParty) {
-                    showAlert("Error", "Could not find the original party data. Update failed.");
-                    return;
-                }
+                if (!originalParty) throw new Error("Could not find the original party data.");
                 const originalName = originalParty.name;
+
+                // 1. Update the main party document
                 const partyRef = doc(db, 'users', user.uid, 'parties', id);
                 batch.update(partyRef, dataToSave);
-                const lrsCollectionRef = collection(db, 'users', user.uid, 'lrs');
-                const billsCollectionRef = collection(db, 'users', user.uid, 'bills');
-                const lrsAsConsignorQuery = query(lrsCollectionRef, where('consignor.name', '==', originalName));
+
+                // 2. Find and update all LRs where this party was the consignor
+                const lrsAsConsignorQuery = query(collection(db, 'users', user.uid, 'lrs'), where('consignor.name', '==', originalName));
                 const lrsAsConsignorSnapshot = await getDocs(lrsAsConsignorQuery);
-                lrsAsConsignorSnapshot.forEach(doc => { batch.update(doc.ref, { consignor: dataToSave }); });
-                const lrsAsConsigneeQuery = query(lrsCollectionRef, where('consignee.name', '==', originalName));
+                lrsAsConsignorSnapshot.forEach(docSnap => {
+                    batch.update(docSnap.ref, { consignor: dataToSave });
+                });
+
+                // 3. Find and update all LRs where this party was the consignee
+                const lrsAsConsigneeQuery = query(collection(db, 'users', user.uid, 'lrs'), where('consignee.name', '==', originalName));
                 const lrsAsConsigneeSnapshot = await getDocs(lrsAsConsigneeQuery);
-                lrsAsConsigneeSnapshot.forEach(doc => { batch.update(doc.ref, { consignee: dataToSave }); });
-                const billsQuery = query(billsCollectionRef, where('partyName', '==', originalName));
+                lrsAsConsigneeSnapshot.forEach(docSnap => {
+                    batch.update(docSnap.ref, { consignee: dataToSave });
+                });
+
+                // 4. Find and update all Bills for this party
+                const billsQuery = query(collection(db, 'users', user.uid, 'bills'), where('partyName', '==', originalName));
                 const billsSnapshot = await getDocs(billsQuery);
-                billsSnapshot.forEach(doc => { batch.update(doc.ref, { partyName: dataToSave.name }); });
+                billsSnapshot.forEach(docSnap => {
+                    batch.update(docSnap.ref, { partyName: dataToSave.name });
+                });
+                
+                // 5. Commit all changes
                 await batch.commit();
                 showAlert("Success", "Party updated successfully across all records.");
-            } else {
-                const partiesCollectionRef = collection(db, 'users', user.uid, 'parties');
-                await addDoc(partiesCollectionRef, partyData);
+
+            } else { // Logic for ADDING a new party
+                await addDoc(collection(db, 'users', user.uid, 'parties'), partyData);
                 showAlert("Success", "New party added successfully.");
             }
         } catch (error) {
@@ -1208,12 +1195,13 @@ function App() {
             setEditingParty(null);
         }
     };
+
     const handleLogout = () => {
         signOut(auth);
     };
     
     const renderView = () => {
-        const props = { db, userId: user?.uid, setView: handleSetView, lrs, bills, parties, handleDeleteRequest, handleDelete, showAlert, onEditParty: handleOpenPartyModal, selectedMonth, setSelectedMonth };
+        const props = { userId: user?.uid, setView: handleSetView, lrs, bills, parties, handleDeleteRequest, handleDelete, showAlert, onEditParty: handleOpenPartyModal, selectedMonth, setSelectedMonth };
         switch (view) {
             case 'add_lr': return <LrForm {...props} existingLr={editingLr} />;
             case 'billing': return <BillingView {...props} />;
@@ -1223,22 +1211,14 @@ function App() {
             case 'lrs': default: return <LrView {...props} handleEditLr={handleEditLr} />;
         }
     };
-    
-    if (configError) {
-        return <div className="min-h-screen flex items-center justify-center bg-red-50 text-red-700 p-4">
-            <div className="text-center">
-                <h2 className="text-2xl font-bold mb-2">Configuration Error</h2>
-                <p>{configError}</p>
-            </div>
-        </div>;
-    }
 
-    if (loading || (!dataLoaded && user) || !scriptsLoaded) {
+    // --- UPDATED: Loading state now checks for scriptsLoaded as well ---
+    if (loading || (!dataLoaded && user) || (!scriptsLoaded && user)) {
         return <div className="min-h-screen flex items-center justify-center bg-slate-50"><p className="text-xl font-semibold text-slate-500">Loading Application...</p></div>;
     }
     
     if (!user) {
-        return <LoginScreen auth={auth} showAlert={showAlert} />;
+        return <LoginScreen showAlert={showAlert} />;
     }
     
     return (
@@ -1267,4 +1247,3 @@ function App() {
 }
 
 export default App;
-
