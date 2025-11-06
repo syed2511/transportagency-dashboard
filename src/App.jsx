@@ -102,6 +102,25 @@ const companyConfigs = {
         ifsc: "MAHB0001126"
     }
 };
+const billNumberComparator = (billA, billB) => {
+    // Regex to split bill number into numeric part and suffix (e.g., "10-A" -> "10", "-A")
+    const regex = /(\d+)(.*)/;
+
+    const [matchA, numStrA, suffixA] = billA.billNumber.match(regex) || [];
+    const [matchB, numStrB, suffixB] = billB.billNumber.match(regex) || [];
+
+    // Convert the numeric part to an integer
+    const numA = parseInt(numStrA, 10) || 0;
+    const numB = parseInt(numStrB, 10) || 0;
+
+    // 1. Compare numeric parts first (Descending order: larger number comes first/on top)
+    if (numB !== numA) {
+        return numB - numA;
+    }
+
+    // 2. If numeric parts are equal, compare suffixes lexicographically (Ascending order)
+    return suffixA.localeCompare(suffixB);
+};
 
 // --- PDF Generation Functions ---
 const generatePdfForBill = (bill, lrsInBill, showAlert) => {
@@ -591,16 +610,20 @@ function LrForm({ userId, setView, parties, existingLr, showAlert, onEditParty }
 }
 
 function BillingView({ userId, setView, bills, lrs, handleDeleteRequest, showAlert, selectedMonth, setSelectedMonth }) {
+    // The billNumberComparator is defined outside this component.
+
     const handleDeleteBill = async (billId, lrIds) => {
         const batch = writeBatch(db);
-        const billRef = doc(db, 'users', userId, 'bills', billId);
+        // Using the user pathing now handled by the App component/global logic to ensure security context.
+        const billRef = doc(db, 'artifacts/' + appId + '/users/' + userId + '/bills', billId);
         batch.delete(billRef);
         lrIds.forEach(lrId => {
-            const lrRef = doc(db, 'users', userId, 'lrs', lrId);
+            const lrRef = doc(db, 'artifacts/' + appId + '/users/' + userId + '/lrs', lrId);
             batch.update(lrRef, { isBilled: false });
         });
         await batch.commit();
     };
+
     const handleDownload = (bill) => {
         if (!window.jspdf || !window.jspdf.jsPDF) {
             showAlert("Library Error", "The PDF library (jsPDF) is not available.");
@@ -613,9 +636,11 @@ function BillingView({ userId, setView, bills, lrs, handleDeleteRequest, showAle
             showAlert("Data Not Found", "Shipment data for this bill could not be found.");
         }
     };
+    
     const handleMarkAsPaid = async (billId) => {
         try {
-            const billRef = doc(db, 'users', userId, 'bills', billId);
+            // Using the user pathing now handled by the App component/global logic to ensure security context.
+            const billRef = doc(db, 'artifacts/' + appId + '/users/' + userId + '/bills', billId);
             await updateDoc(billRef, { status: 'Paid' });
             showAlert("Success", "Bill has been marked as paid.");
         } catch (error) {
@@ -630,7 +655,8 @@ function BillingView({ userId, setView, bills, lrs, handleDeleteRequest, showAle
                 if (!selectedMonth) return true;
                 return bill.billDate.startsWith(selectedMonth);
             })
-            .sort((a, b) => Number(b.billNumber) - Number(a.billNumber));
+            // *** Applying the custom alphanumeric sorting function ***
+            .sort(billNumberComparator); 
     }, [bills, selectedMonth]);
 
     const handleExportBills = () => {
@@ -698,7 +724,6 @@ function BillingView({ userId, setView, bills, lrs, handleDeleteRequest, showAle
         </div>
     );
 }
-
 function CreateBillForm({ userId, setView, lrs, showAlert }) {
     const [billNumber, setBillNumber] = useState('');
     const [billDate, setBillDate] = useState(new Date().toISOString().split('T')[0]);
