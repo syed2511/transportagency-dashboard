@@ -615,10 +615,10 @@ function BillingView({ userId, setView, bills, lrs, handleDeleteRequest, showAle
     const handleDeleteBill = async (billId, lrIds) => {
         const batch = writeBatch(db);
         // Using the user pathing now handled by the App component/global logic to ensure security context.
-        const billRef = doc(db, 'artifacts/' + appId + '/users/' + userId + '/bills', billId);
+        const billRef = doc(db, 'users', userId, 'bills', billId);
         batch.delete(billRef);
         lrIds.forEach(lrId => {
-            const lrRef = doc(db, 'artifacts/' + appId + '/users/' + userId + '/lrs', lrId);
+            const lrRef = doc(db, 'users', userId, 'lrs', lrId);
             batch.update(lrRef, { isBilled: false });
         });
         await batch.commit();
@@ -640,7 +640,7 @@ function BillingView({ userId, setView, bills, lrs, handleDeleteRequest, showAle
     const handleMarkAsPaid = async (billId) => {
         try {
             // Using the user pathing now handled by the App component/global logic to ensure security context.
-            const billRef = doc(db, 'artifacts/' + appId + '/users/' + userId + '/bills', billId);
+            const billRef = doc(db, 'users', userId, 'bills', billId);
             await updateDoc(billRef, { status: 'Paid' });
             showAlert("Success", "Bill has been marked as paid.");
         } catch (error) {
