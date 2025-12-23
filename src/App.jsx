@@ -177,8 +177,25 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
             doc.text(`GSTIN: ${party.gstin}`, 14, yPos); 
         }
         yPos += 10;
+        // ... inside generatePdfForBill function ...
+
+        doc.text(party.address || "N/A", 14, yPos);
+        if (party.gstin) { 
+            yPos += 6; 
+            doc.setFont("helvetica", "bold"); 
+            doc.text(`GSTIN: ${party.gstin}`, 14, yPos); 
+        }
+
+        // --- PASTE THIS BLOCK HERE ---
+        yPos += 5; 
+        doc.setFont("helvetica", "normal"); 
+        doc.text("Reverse Charge Mechanism: Yes", 14, yPos);
+        // -----------------------------
+
+        yPos += 10;
         doc.text("SUB: Regd - Transportation Bill.", 14, yPos);
 
+// ... rest of the function ...
         const processedTrucks = new Set();
         const tableBody = lrsInBill.map(lr => {
             const truckNumbersArray = (lr.truckDetails?.truckNumbers || [lr.truckDetails?.truckNumber]).filter(Boolean);
