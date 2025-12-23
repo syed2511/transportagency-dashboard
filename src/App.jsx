@@ -176,16 +176,7 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
             doc.setFont("helvetica", "bold"); 
             doc.text(`GSTIN: ${party.gstin}`, 14, yPos); 
         }
-        yPos += 10;
         // ... inside generatePdfForBill function ...
-
-        doc.text(party.address || "N/A", 14, yPos);
-        if (party.gstin) { 
-            yPos += 6; 
-            doc.setFont("helvetica", "bold"); 
-            doc.text(`GSTIN: ${party.gstin}`, 14, yPos); 
-        }
-
         // --- PASTE THIS BLOCK HERE ---
         yPos += 5; 
         doc.setFont("helvetica", "normal"); 
