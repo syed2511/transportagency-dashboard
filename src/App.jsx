@@ -176,17 +176,8 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
             doc.setFont("helvetica", "bold"); 
             doc.text(`GSTIN: ${party.gstin}`, 14, yPos); 
         }
-        // ... inside generatePdfForBill function ...
-        // --- PASTE THIS BLOCK HERE ---
-        yPos += 5; 
-        doc.setFont("helvetica", "normal"); 
-        doc.text("Reverse Charge Mechanism: Yes", 14, yPos);
-        // -----------------------------
-
         yPos += 10;
         doc.text("SUB: Regd - Transportation Bill.", 14, yPos);
-
-// ... rest of the function ...
         const processedTrucks = new Set();
         const tableBody = lrsInBill.map(lr => {
             const truckNumbersArray = (lr.truckDetails?.truckNumbers || [lr.truckDetails?.truckNumber]).filter(Boolean);
@@ -254,7 +245,10 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
                 let finalY = data.cursor.y;
                 doc.setFont("helvetica", "bold");
                 doc.text(`Total Rupees ${numberToWords(bill.totalAmount)}`, 14, finalY + 15);
-
+                // --- NEW LOCATION: Reverse Charge Mechanism Declaration ---
+                doc.setFontSize(10);
+                doc.text("* Reverse Charge Mechanism: Yes", 14, finalY + 22);
+                //                
                 finalY += 30;
                 doc.setFont("helvetica", "bold");
                 doc.text("OUR BANK DETAILS:", 14, finalY);
