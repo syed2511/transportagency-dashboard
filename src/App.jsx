@@ -73,13 +73,13 @@ const companyConfigs = {
         header: "GLOBAL LOGISTICS",
         prefix: "GL",
         address: "2-42-69/3 ILTD JUNCTION, RAJAMAHENDRAVARAM",
-        enrollmentNo: "37AHKPJ7246C1ZB",
-        panNo: "AHKPJ7246C",
-        phone: "9885086504, 7396579956",
+        panNo: "LJBPS6830H",
+        phone: "9885086504, 7981658659",
         email: "GLOBALRJY1@GMAIL.COM",
-        bank: "ICICI BANK",
-        ac: "631505500740",
-        ifsc: "ICIC0006315"
+        bank: "HDFC BANK",
+        ac: "50200117398447",
+        ifsc: "HDFC0000215",
+        bankBranch: "DANVAIPETA, RAJAHMUNDRY"
     },
     "SRI KUMAR TRANSPORT": {
         header: "SRI KUMAR TRANSPORT",
@@ -144,10 +144,17 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
             doc.text(config.address, 105, yPos, { align: "center" });
         }
         
-        if (config.panNo && config.enrollmentNo) {
+        if (config.panNo || config.enrollmentNo) {
             yPos += 5;
             doc.setFont("helvetica", "bold");
-            doc.text(`PAN: ${config.panNo} | Enrollment No: ${config.enrollmentNo}`, 105, yPos, { align: "center" });
+            
+            // Build the text string dynamically based on what is available
+            const parts = [];
+            if (config.panNo) parts.push(`PAN: ${config.panNo}`);
+            if (config.enrollmentNo) parts.push(`Enrollment No: ${config.enrollmentNo}`);
+            
+            // Join them with a separator if both exist
+            doc.text(parts.join(" | "), 105, yPos, { align: "center" });
             doc.setFont("helvetica", "normal");
         }
 
@@ -257,7 +264,7 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
                 doc.text(config.header, 14, finalY + 10);
                 doc.text(`ACCOUNT NO. ${config.ac}`, 14, finalY + 15);
                 doc.text(`IFSC CODE: ${config.ifsc}`, 14, finalY + 20);
-                doc.text('T NAGAR, RAJAHMUNDRY', 14, finalY + 25);
+                doc.text(config.bankBranch || 'T NAGAR, RAJAHMUNDRY', 14, finalY + 25);
                 
                 doc.setFont("helvetica", "bold");
                 doc.text(`For ${config.header}`, 196, finalY + 30, { align: "right" });
