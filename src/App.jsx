@@ -378,10 +378,11 @@ const PartySelector = ({ parties, onSelect, onAddNew, selectedPartyName }) => <s
 const InfoBox = ({ data }) => <div className="mt-2 text-sm bg-slate-50 p-3 rounded-md min-h-[6rem] border"><p className="font-semibold text-slate-700">Address:</p><p className="text-slate-600">{data?.address || 'N/A'}</p><p className="font-semibold text-slate-700 mt-1">GSTIN:</p><p className="text-slate-600">{data?.gstin || 'N/A'}</p></div>;
 
 function PartyFormModal({ party, onSave, onCancel, showAlert }) {
-    const [formData, setFormData] = useState(party || { name: '', address: '', gstin: '', mobile: '' });
+    // Initialize state with email
+    const [formData, setFormData] = useState(party || { name: '', address: '', gstin: '', mobile: '', email: '' });
     
     useEffect(() => {
-        setFormData(party || { name: '', address: '', gstin: '', mobile: '' });
+        setFormData(party || { name: '', address: '', gstin: '', mobile: '', email: '' });
     }, [party]);
     
     const handleChange = (e) => {
@@ -405,7 +406,9 @@ function PartyFormModal({ party, onSave, onCancel, showAlert }) {
                     <Input label="Party Name (Required)" name="name" value={formData.name} onChange={handleChange} />
                     <Input label="Address" name="address" value={formData.address} onChange={handleChange} />
                     <Input label="GSTIN" name="gstin" value={formData.gstin} onChange={handleChange} />
-                    <Input label="Mobile Number" name="mobile" value={formData.mobile || ''} onChange={handleChange} placeholder="Contact Number (Not shown on Bill)" />
+                    <Input label="Mobile Number" name="mobile" value={formData.mobile || ''} onChange={handleChange} placeholder="Contact Number" />
+                    {/* NEW EMAIL FIELD */}
+                    <Input label="Email Address" name="email" type="email" value={formData.email || ''} onChange={handleChange} placeholder="email@example.com" />
                 </div>
                 <div className="flex justify-end gap-2 mt-6">
                     <button type="button" onClick={onCancel} className="btn-secondary">Cancel</button>
@@ -911,22 +914,81 @@ function CreateBillForm({ userId, setView, lrs, showAlert, companyConfigs, editi
     );
 }
 
-function PartiesView({ parties, handleDelete, handleDeleteRequest, onEditParty }) {
+function PartiesView({ parties, handleDelete, handleDeleteRequest, onEditParty, showAlert }) {
+    
+    // --- SORTING LOGIC ---
+    const sortedParties = useMemo(() => {
+        return [...parties].sort((a, b) => {
+            // 1. Primary Sort: Alphabetical (Name)
+            const nameCompare = (a.name || '').localeCompare(b.name || '');
+            if (nameCompare !== 0) return nameCompare;
+
+            // 2. Secondary Sort: Date Entered (Newest first)
+            // Note: Existing data might not have createdAt, treating them as older.
+            const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
+            const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
+            return dateB - dateA;
+        });
+    }, [parties]);
+
+    // --- EXCEL EXPORT LOGIC ---
+    const handleExportParties = () => {
+        if (sortedParties.length === 0) {
+            showAlert("No Data", "No parties to export.");
+            return;
+        }
+        if (typeof window.XLSX === 'undefined') {
+            showAlert("Library Error", "XLSX library not loaded.");
+            return;
+        }
+
+        const dataToExport = sortedParties.map(p => ({
+            "Party Name": p.name,
+            "Address": p.address,
+            "Mobile": p.mobile || '',
+            "Email": p.email || '',
+            "GSTIN": p.gstin || '',
+            "Date Added": p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-GB') : '-'
+        }));
+
+        const worksheet = window.XLSX.utils.json_to_sheet(dataToExport);
+        const workbook = window.XLSX.utils.book_new();
+        window.XLSX.utils.book_append_sheet(workbook, worksheet, "Parties");
+        window.XLSX.writeFile(workbook, "Parties_List.xlsx");
+    };
+
     return (
         <div>
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-bold">Manage Parties</h2>
-                <button onClick={() => onEditParty()} className="btn-primary flex items-center gap-2"><PlusCircleIcon/>Add Party</button>
+                <div className="flex gap-2">
+                    <button onClick={handleExportParties} className="btn-secondary flex items-center gap-2">
+                        <DownloadIcon className="h-5 w-5"/> Export Excel
+                    </button>
+                    <button onClick={() => onEditParty()} className="btn-primary flex items-center gap-2">
+                        <PlusCircleIcon className="h-5 w-5"/> Add Party
+                    </button>
+                </div>
             </div>
             <div className="overflow-x-auto">
                 <table className="min-w-full text-sm">
-                    <thead><tr><th className="th">Name</th><th className="th">Address</th><th className="th">Mobile</th><th className="th">GSTIN</th><th className="th">Actions</th></tr></thead>
+                    <thead>
+                        <tr>
+                            <th className="th">Name</th>
+                            <th className="th">Address</th>
+                            <th className="th">Mobile</th>
+                            <th className="th">Email</th> 
+                            <th className="th">GSTIN</th>
+                            <th className="th">Actions</th>
+                        </tr>
+                    </thead>
                     <tbody className="divide-y divide-slate-100">
-                        {parties.map(p => (
+                        {sortedParties.map(p => (
                             <tr key={p.id}>
-                                <td className="td">{p.name}</td>
+                                <td className="td font-semibold text-slate-700">{p.name}</td>
                                 <td className="td">{p.address}</td>
                                 <td className="td">{p.mobile || '-'}</td>
+                                <td className="td text-blue-600">{p.email || '-'}</td>
                                 <td className="td">{p.gstin}</td>
                                 <td className="td flex gap-4">
                                     <button onClick={() => onEditParty(p)} className="text-indigo-600 font-semibold">Edit</button>
@@ -1378,9 +1440,11 @@ function App() {
 
         try {
             if (partyData.id) {
+                // ... (Existing logic for updating party remains the same) ...
                 const { id, ...dataToSave } = partyData;
                 const batch = writeBatch(db);
                 
+                // Fetch original data to update linked docs
                 const originalParty = parties.find(p => p.id === id);
                 if (!originalParty) throw new Error("Could not find the original party data.");
                 const originalName = originalParty.name;
@@ -1388,34 +1452,36 @@ function App() {
                 const partyRef = doc(db, 'users', user.uid, 'parties', id);
                 batch.update(partyRef, dataToSave);
 
+                // Update linked LRs (Consignor)
                 const lrsAsConsignorQuery = query(collection(db, 'users', user.uid, 'lrs'), where('consignor.name', '==', originalName));
                 const lrsAsConsignorSnapshot = await getDocs(lrsAsConsignorQuery);
-                lrsAsConsignorSnapshot.forEach(docSnap => {
-                    batch.update(docSnap.ref, { consignor: dataToSave });
-                });
+                lrsAsConsignorSnapshot.forEach(docSnap => { batch.update(docSnap.ref, { consignor: dataToSave }); });
 
+                // Update linked LRs (Consignee)
                 const lrsAsConsigneeQuery = query(collection(db, 'users', user.uid, 'lrs'), where('consignee.name', '==', originalName));
                 const lrsAsConsigneeSnapshot = await getDocs(lrsAsConsigneeQuery);
-                lrsAsConsigneeSnapshot.forEach(docSnap => {
-                    batch.update(docSnap.ref, { consignee: dataToSave });
-                });
+                lrsAsConsigneeSnapshot.forEach(docSnap => { batch.update(docSnap.ref, { consignee: dataToSave }); });
 
+                // Update linked Bills
                 const billsQuery = query(collection(db, 'users', user.uid, 'bills'), where('partyName', '==', originalName));
                 const billsSnapshot = await getDocs(billsQuery);
-                billsSnapshot.forEach(docSnap => {
-                    batch.update(docSnap.ref, { partyName: dataToSave.name });
-                });
+                billsSnapshot.forEach(docSnap => { batch.update(docSnap.ref, { partyName: dataToSave.name }); });
                 
                 await batch.commit();
                 showAlert("Success", "Party updated successfully across all records.");
 
             } else {
-                await addDoc(collection(db, 'users', user.uid, 'parties', partyData));
+                // --- UPDATE HERE: ADD createdAt TIMESTAMP ---
+                const newPartyData = {
+                    ...partyData,
+                    createdAt: new Date().toISOString() // Save creation time for sorting
+                };
+                await addDoc(collection(db, 'users', user.uid, 'parties'), newPartyData);
                 showAlert("Success", "New party added successfully.");
             }
         } catch (error) {
-            console.error("Error saving party and related documents:", error);
-            showAlert("Save Failed", "Could not save the party details. Check the console for more info.");
+            console.error("Error saving party:", error);
+            showAlert("Save Failed", "Could not save the party details.");
         } finally {
             setIsPartyModalOpen(false);
             setEditingParty(null);
