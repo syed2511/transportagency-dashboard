@@ -247,7 +247,6 @@ const generatePdfForBill = (bill, lrsInBill, showAlert, companyConfigs) => {
                 doc.text("OUR BANK DETAILS:", 14, finalY);
                 doc.setFont("helvetica", "normal");
                 
-                // Logic: Use bank details saved in Bill, or fallback to first account in Config, or fallback to generic
                 const bankDetails = bill.bankDetails || (config.bankAccounts ? config.bankAccounts[0] : {});
                 
                 doc.text(bankDetails.name || config.bank || '', 14, finalY + 5);
@@ -379,10 +378,10 @@ const PartySelector = ({ parties, onSelect, onAddNew, selectedPartyName }) => <s
 const InfoBox = ({ data }) => <div className="mt-2 text-sm bg-slate-50 p-3 rounded-md min-h-[6rem] border"><p className="font-semibold text-slate-700">Address:</p><p className="text-slate-600">{data?.address || 'N/A'}</p><p className="font-semibold text-slate-700 mt-1">GSTIN:</p><p className="text-slate-600">{data?.gstin || 'N/A'}</p></div>;
 
 function PartyFormModal({ party, onSave, onCancel, showAlert }) {
-    const [formData, setFormData] = useState(party || { name: '', address: '', gstin: '' });
+    const [formData, setFormData] = useState(party || { name: '', address: '', gstin: '', mobile: '' });
     
     useEffect(() => {
-        setFormData(party || { name: '', address: '', gstin: '' });
+        setFormData(party || { name: '', address: '', gstin: '', mobile: '' });
     }, [party]);
     
     const handleChange = (e) => {
@@ -406,6 +405,7 @@ function PartyFormModal({ party, onSave, onCancel, showAlert }) {
                     <Input label="Party Name (Required)" name="name" value={formData.name} onChange={handleChange} />
                     <Input label="Address" name="address" value={formData.address} onChange={handleChange} />
                     <Input label="GSTIN" name="gstin" value={formData.gstin} onChange={handleChange} />
+                    <Input label="Mobile Number" name="mobile" value={formData.mobile || ''} onChange={handleChange} placeholder="Contact Number (Not shown on Bill)" />
                 </div>
                 <div className="flex justify-end gap-2 mt-6">
                     <button type="button" onClick={onCancel} className="btn-secondary">Cancel</button>
@@ -608,7 +608,7 @@ function LrForm({ userId, setView, parties, existingLr, showAlert, onEditParty }
     );
 }
 
-function BillingView({ userId, setView, bills, lrs, handleDeleteRequest, showAlert, selectedMonth, setSelectedMonth, companyConfigs }) {
+function BillingView({ userId, setView, bills, lrs, handleDeleteRequest, handleEditBill, showAlert, selectedMonth, setSelectedMonth, companyConfigs }) {
     const handleDeleteBill = async (billId, lrIds) => {
         const batch = writeBatch(db);
         const billRef = doc(db, 'users', userId, 'bills', billId);
@@ -708,6 +708,7 @@ function BillingView({ userId, setView, bills, lrs, handleDeleteRequest, showAle
                                         <CheckCircleIcon className="h-5 w-5"/>
                                     </button>
                                 )}
+                                <button onClick={() => handleEditBill(bill)} className="text-indigo-600 font-semibold px-2">Edit</button>
                                 <button onClick={() => handleDeleteRequest(`Delete Bill #${bill.billNumber}? Associated LRs will be marked as unbilled.`, () => handleDeleteBill(bill.id, bill.lrIds))} className="btn-icon-danger">Delete</button>
                             </div>
                         </div>
@@ -719,7 +720,7 @@ function BillingView({ userId, setView, bills, lrs, handleDeleteRequest, showAle
     );
 }
 
-function CreateBillForm({ userId, setView, lrs, showAlert, companyConfigs }) {
+function CreateBillForm({ userId, setView, lrs, showAlert, companyConfigs, editingBill }) {
     const [billNumber, setBillNumber] = useState('');
     const [billDate, setBillDate] = useState(new Date().toISOString().split('T')[0]);
     const [selectedLrs, setSelectedLrs] = useState([]);
@@ -728,7 +729,37 @@ function CreateBillForm({ userId, setView, lrs, showAlert, companyConfigs }) {
     const [partyName, setPartyName] = useState('');
     const [bankAccountIndex, setBankAccountIndex] = useState(0);
 
-    const unbilledLrs = lrs.filter(lr => !lr.isBilled && lr.companyName === companyName);
+    // Populate form if editing
+    useEffect(() => {
+        if (editingBill) {
+            setBillNumber(editingBill.billNumber);
+            setBillDate(editingBill.billDate);
+            setCompanyName(editingBill.companyName);
+            setBillTo(editingBill.billTo);
+            setPartyName(editingBill.partyName);
+            setSelectedLrs(editingBill.lrIds);
+            
+            // Try to find the matching bank account index
+            if (editingBill.bankDetails && companyConfigs[editingBill.companyName]?.bankAccounts) {
+                const accounts = companyConfigs[editingBill.companyName].bankAccounts;
+                const idx = accounts.findIndex(acc => acc.ac === editingBill.bankDetails.ac);
+                if (idx !== -1) setBankAccountIndex(idx);
+            }
+        }
+    }, [editingBill, companyConfigs]);
+
+    // Available LRs: Unbilled ones OR ones already in this bill (if editing)
+    const availableLrs = useMemo(() => {
+        return lrs.filter(lr => {
+            const isCompanyMatch = lr.companyName === companyName;
+            if (!isCompanyMatch) return false;
+            
+            const isUnbilled = !lr.isBilled;
+            const isInCurrentBill = editingBill && editingBill.lrIds.includes(lr.id);
+            
+            return isUnbilled || isInCurrentBill;
+        });
+    }, [lrs, companyName, editingBill]);
 
     const handleCompanyChange = (e) => {
         setCompanyName(e.target.value);
@@ -738,7 +769,7 @@ function CreateBillForm({ userId, setView, lrs, showAlert, companyConfigs }) {
     };
 
     const handleLrSelection = (lrId) => {
-        const lr = unbilledLrs.find(l => l.id === lrId);
+        const lr = availableLrs.find(l => l.id === lrId);
         if (!lr) return;
         const currentParty = billTo === 'Consignor' ? lr.consignor.name : lr.consignee.name;
         if (selectedLrs.length === 0) {
@@ -750,6 +781,7 @@ function CreateBillForm({ userId, setView, lrs, showAlert, companyConfigs }) {
             showAlert("Party Mismatch", `Please select LRs for the same party (${partyName}).`);
         }
     };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!billNumber || selectedLrs.length === 0) {
@@ -778,7 +810,7 @@ function CreateBillForm({ userId, setView, lrs, showAlert, companyConfigs }) {
         const config = companyConfigs[companyName];
         const selectedBankDetails = config.bankAccounts ? config.bankAccounts[bankAccountIndex] : null;
 
-        const newBill = { 
+        const newBillData = { 
             billNumber, 
             billDate, 
             companyName, 
@@ -786,27 +818,46 @@ function CreateBillForm({ userId, setView, lrs, showAlert, companyConfigs }) {
             partyName, 
             lrIds: selectedLrs, 
             totalAmount, 
-            status: 'Due',
+            status: editingBill ? editingBill.status : 'Due',
             bankDetails: selectedBankDetails
         };
         
         const batch = writeBatch(db);
-        const newBillRef = doc(collection(db, 'users', userId, 'bills'));
-        batch.set(newBillRef, newBill);
+        
+        if (editingBill) {
+            // Update existing bill
+            const billRef = doc(db, 'users', userId, 'bills', editingBill.id);
+            batch.update(billRef, newBillData);
+
+            // Determine LRs removed from bill -> mark unbilled
+            const removedLrs = editingBill.lrIds.filter(id => !selectedLrs.includes(id));
+            removedLrs.forEach(id => {
+                const lrRef = doc(db, 'users', userId, 'lrs', id);
+                batch.update(lrRef, { isBilled: false });
+            });
+        } else {
+            // Create new bill
+            const newBillRef = doc(collection(db, 'users', userId, 'bills'));
+            batch.set(newBillRef, newBillData);
+        }
+
+        // Mark current selected LRs as billed
         selectedLrs.forEach(lrId => {
             const lrRef = doc(db, 'users', userId, 'lrs', lrId);
             batch.update(lrRef, { isBilled: true });
         });
+
         await batch.commit();
         setView('billing');
     };
+
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
-            <h2 className="text-2xl font-bold">Create New Bill</h2>
+            <h2 className="text-2xl font-bold">{editingBill ? `Edit Bill #${editingBill.billNumber}` : 'Create New Bill'}</h2>
             <Section title="Bill Details">
                 <Input label="Bill Number" value={billNumber} onChange={e => setBillNumber(e.target.value)} required />
                 <Input label="Bill Date" type="date" value={billDate} onChange={e => setBillDate(e.target.value)} />
-                <Input label="Company" value={companyName} as="select" onChange={handleCompanyChange}>
+                <Input label="Company" value={companyName} as="select" onChange={handleCompanyChange} disabled={!!editingBill}>
                     <option>GLOBAL LOGISTICS</option><option>SRI KUMAR TRANSPORT</option><option>SAI KUMAR TRANSPORT</option>
                 </Input>
                 
@@ -827,36 +878,33 @@ function CreateBillForm({ userId, setView, lrs, showAlert, companyConfigs }) {
                     </div>
                 )}
 
-                <Input label="Bill To" value={billTo} as="select" onChange={e => {setBillTo(e.target.value); setSelectedLrs([]); setPartyName('');}}>
+                <Input label="Bill To" value={billTo} as="select" onChange={e => {setBillTo(e.target.value); setSelectedLrs([]); setPartyName('');}} disabled={!!editingBill}>
                     <option value="Consignee">Consignee</option><option value="Consignor">Consignor</option>
                 </Input>
             </Section>
-            <Section title={`Select Unbilled LRs for ${companyName}`}>
+            <Section title={`Select LRs for ${companyName}`}>
                 {partyName && <p className="font-semibold text-indigo-600 mb-2">Billing To Party: {partyName}</p>}
                 <div className="max-h-60 overflow-y-auto space-y-2 p-2 bg-slate-50 border rounded-md">
-                    {unbilledLrs.length > 0 ? unbilledLrs.map(lr => {
+                    {availableLrs.length > 0 ? availableLrs.map(lr => {
                         const originalFreight = parseFloat(lr.billDetails?.amount) || 0;
                         const ratePerTon = parseFloat(lr.billDetails?.ratePerTon) || 0;
                         const weight = parseFloat(lr.loadingDetails?.weight) || 0;
-                        
-                        let displayAmount;
-                        if (ratePerTon > 0 && weight > 0) {
-                            displayAmount = Math.round(ratePerTon * weight).toFixed(2);
-                        } else {
-                            displayAmount = originalFreight.toFixed(2);
-                        }
+                        const displayAmount = (ratePerTon > 0 && weight > 0) ? Math.round(ratePerTon * weight).toFixed(2) : originalFreight.toFixed(2);
+                        const isSelected = selectedLrs.includes(lr.id);
 
                         return (
-                            <div key={lr.id} onClick={() => handleLrSelection(lr.id)} className={`p-3 border rounded-md cursor-pointer transition-colors ${selectedLrs.includes(lr.id) ? 'bg-indigo-100 border-indigo-300' : 'bg-white hover:bg-indigo-50'}`}>
-                                <p className="font-semibold">LR #{lr.lrNumber} - <span className="font-normal">{billTo === 'Consignor' ? lr.consignor.name : lr.consignee.name}</span> - <span className="font-bold">₹{displayAmount}</span></p>
+                            <div key={lr.id} onClick={() => handleLrSelection(lr.id)} className={`p-3 border rounded-md cursor-pointer transition-colors ${isSelected ? 'bg-indigo-100 border-indigo-300' : 'bg-white hover:bg-indigo-50'}`}>
+                                <p className="font-semibold">LR #{lr.lrNumber} - <span className="font-normal">{billTo === 'Consignor' ? lr.consignor.name : lr.consignee.name}</span> - <span className="font-bold">₹{displayAmount}</span>
+                                {editingBill && editingBill.lrIds.includes(lr.id) && <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded">Current</span>}
+                                </p>
                             </div>
                         )
-                    }) : <p className="text-slate-500 text-center p-4">No unbilled LRs for this company.</p>}
+                    }) : <p className="text-slate-500 text-center p-4">No available LRs found for this company.</p>}
                 </div>
             </Section>
             <div className="flex justify-end gap-4">
                 <button type="button" onClick={() => setView('billing')} className="btn-secondary">Cancel</button>
-                <button type="submit" className="btn-primary">Create Bill</button>
+                <button type="submit" className="btn-primary">{editingBill ? 'Update Bill' : 'Create Bill'}</button>
             </div>
             <style>{`.btn-primary{background:#4F46E5; color:white; padding:8px 16px; border-radius:8px;} .btn-secondary{background:#E5E7EB; color:#374151; padding:8px 16px; border-radius:8px;}`}</style>
         </form>
@@ -872,12 +920,13 @@ function PartiesView({ parties, handleDelete, handleDeleteRequest, onEditParty }
             </div>
             <div className="overflow-x-auto">
                 <table className="min-w-full text-sm">
-                    <thead><tr><th className="th">Name</th><th className="th">Address</th><th className="th">GSTIN</th><th className="th">Actions</th></tr></thead>
+                    <thead><tr><th className="th">Name</th><th className="th">Address</th><th className="th">Mobile</th><th className="th">GSTIN</th><th className="th">Actions</th></tr></thead>
                     <tbody className="divide-y divide-slate-100">
                         {parties.map(p => (
                             <tr key={p.id}>
                                 <td className="td">{p.name}</td>
                                 <td className="td">{p.address}</td>
+                                <td className="td">{p.mobile || '-'}</td>
                                 <td className="td">{p.gstin}</td>
                                 <td className="td flex gap-4">
                                     <button onClick={() => onEditParty(p)} className="text-indigo-600 font-semibold">Edit</button>
@@ -1154,6 +1203,7 @@ function App() {
     const [bills, setBills] = useState([]);
     const [parties, setParties] = useState([]);
     const [editingLr, setEditingLr] = useState(null);
+    const [editingBill, setEditingBill] = useState(null); // State for editing bills
     const [loading, setLoading] = useState(true);
     const [user, setUser] = useState(null);
     const [confirmation, setConfirmation] = useState(null);
@@ -1257,6 +1307,7 @@ function App() {
 
     const handleSetView = (newView) => {
         setEditingLr(null);
+        setEditingBill(null); // Clear editing state when changing views
         localStorage.removeItem('editingLrId');
         setView(newView);
     };
@@ -1266,6 +1317,12 @@ function App() {
         setEditingLr(lr);
         setView('add_lr');
     };
+
+    const handleEditBill = (bill) => {
+        setEditingBill(bill);
+        setView('create_bill');
+    };
+
     useEffect(() => {
         localStorage.setItem('currentView', view);
     }, [view]);
@@ -1378,7 +1435,9 @@ function App() {
             onEditParty: handleOpenPartyModal, 
             selectedMonth, setSelectedMonth,
             companyConfigs: configs, // Pass dynamic configs
-            setCompanyConfigs: setConfigs // Pass setter for Bank Settings
+            setCompanyConfigs: setConfigs, // Pass setter for Bank Settings
+            handleEditBill, // Pass edit handler
+            editingBill // Pass editing state
         };
         switch (view) {
             case 'add_lr': return <LrForm {...props} existingLr={editingLr} />;
@@ -1386,7 +1445,7 @@ function App() {
             case 'create_bill': return <CreateBillForm {...props} />;
             case 'parties': return <PartiesView {...props} />;
             case 'statements': return <StatementView {...props}/>;
-            case 'banks': return <BankSettingsView {...props} />; // New View
+            case 'banks': return <BankSettingsView {...props} />; 
             case 'lrs': default: return <LrView {...props} handleEditLr={handleEditLr} />;
         }
     };
