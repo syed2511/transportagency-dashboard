@@ -73,13 +73,25 @@ const companyConfigs = {
         header: "GLOBAL LOGISTICS",
         prefix: "GL",
         address: "2-42-69/3 ILTD JUNCTION, RAJAMAHENDRAVARAM",
-        panNo: "LJBPS6830H",
-        phone: "9885086504, 7981658659",
+        // Enrollment removed as requested previously
+        panNo: "AHKPJ7246C",
+        phone: "9885086504, 7396579956",
         email: "GLOBALRJY1@GMAIL.COM",
-        bank: "HDFC BANK",
-        ac: "50200117398447",
-        ifsc: "HDFC0000215",
-        bankBranch: "DANVAIPETA, RAJAHMUNDRY"
+        // --- NEW: ARRAY OF BANK ACCOUNTS ---
+        bankAccounts: [
+            {
+                name: "HDFC BANK",
+                ac: "50200117398447",
+                ifsc: "HDFC0000215",
+                branch: "DANVAIPETA, RAJAHMUNDRY"
+            },
+            {
+                name: "ICICI BANK",
+                ac: "631505500740",
+                ifsc: "ICIC0006315",
+                branch: "T NAGAR, RAJAHMUNDRY"
+            }
+        ]
     },
     "SRI KUMAR TRANSPORT": {
         header: "SRI KUMAR TRANSPORT",
@@ -87,9 +99,14 @@ const companyConfigs = {
         address: "6-93/7/4, NEAR KONTHAMURU PANCHAYATI OFFICE",
         phone: "9885086504, 9390680009",
         email: "SKTC.RJY@GMAIL.COM",
-        bank: "ICICI BANK",
-        ac: "631505013772",
-        ifsc: "ICIC0006315"
+        bankAccounts: [
+            {
+                name: "ICICI BANK",
+                ac: "631505013772",
+                ifsc: "ICIC0006315",
+                branch: "T NAGAR, RAJAHMUNDRY"
+            }
+        ]
     },
     "SAI KUMAR TRANSPORT": {
         header: "SAI KUMAR TRANSPORT",
@@ -97,9 +114,14 @@ const companyConfigs = {
         address: "6-93/7/4, NEAR KONTHAMURU PANCHAYATI OFFICE",
         phone: "9885086504, 9390680009",
         email: "SKTC.RJY@GMAIL.COM",
-        bank: "BANK OF MAHARASHTRA",
-        ac: "60380956429",
-        ifsc: "MAHB0001126"
+        bankAccounts: [
+            {
+                name: "BANK OF MAHARASHTRA",
+                ac: "60380956429",
+                ifsc: "MAHB0001126",
+                branch: "T NAGAR, RAJAHMUNDRY"
+            }
+        ]
     }
 };
 const billNumberComparator = (billA, billB) => {
@@ -144,16 +166,13 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
             doc.text(config.address, 105, yPos, { align: "center" });
         }
         
+        // --- MODIFIED: PAN/Enrollment Check ---
         if (config.panNo || config.enrollmentNo) {
             yPos += 5;
             doc.setFont("helvetica", "bold");
-            
-            // Build the text string dynamically based on what is available
             const parts = [];
             if (config.panNo) parts.push(`PAN: ${config.panNo}`);
             if (config.enrollmentNo) parts.push(`Enrollment No: ${config.enrollmentNo}`);
-            
-            // Join them with a separator if both exist
             doc.text(parts.join(" | "), 105, yPos, { align: "center" });
             doc.setFont("helvetica", "normal");
         }
@@ -252,19 +271,23 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
                 let finalY = data.cursor.y;
                 doc.setFont("helvetica", "bold");
                 doc.text(`Total Rupees ${numberToWords(bill.totalAmount)}`, 14, finalY + 15);
-                // --- NEW LOCATION: Reverse Charge Mechanism Declaration ---
                 doc.setFontSize(10);
                 doc.text("* Reverse Charge Mechanism: Yes", 14, finalY + 22);
-                //                
+                
                 finalY += 30;
                 doc.setFont("helvetica", "bold");
                 doc.text("OUR BANK DETAILS:", 14, finalY);
                 doc.setFont("helvetica", "normal");
-                doc.text(config.bank, 14, finalY + 5);
+
+                // --- MODIFIED: Bank Selection Logic ---
+                // Use the bank details saved in the bill, OR fallback to the first one in config
+                const bankDetails = bill.bankDetails || (config.bankAccounts ? config.bankAccounts[0] : {});
+                
+                doc.text(bankDetails.name || config.bank || '', 14, finalY + 5);
                 doc.text(config.header, 14, finalY + 10);
-                doc.text(`ACCOUNT NO. ${config.ac}`, 14, finalY + 15);
-                doc.text(`IFSC CODE: ${config.ifsc}`, 14, finalY + 20);
-                doc.text(config.bankBranch || 'T NAGAR, RAJAHMUNDRY', 14, finalY + 25);
+                doc.text(`ACCOUNT NO. ${bankDetails.ac || config.ac || ''}`, 14, finalY + 15);
+                doc.text(`IFSC CODE: ${bankDetails.ifsc || config.ifsc || ''}`, 14, finalY + 20);
+                doc.text(bankDetails.branch || 'RAJAHMUNDRY', 14, finalY + 25);
                 
                 doc.setFont("helvetica", "bold");
                 doc.text(`For ${config.header}`, 196, finalY + 30, { align: "right" });
@@ -740,7 +763,18 @@ function CreateBillForm({ userId, setView, lrs, showAlert }) {
     const [companyName, setCompanyName] = useState('GLOBAL LOGISTICS');
     const [billTo, setBillTo] = useState('Consignee');
     const [partyName, setPartyName] = useState('');
+    const [bankAccountIndex, setBankAccountIndex] = useState(0); // State for selected bank
+
     const unbilledLrs = lrs.filter(lr => !lr.isBilled && lr.companyName === companyName);
+    
+    // Reset bank selection when company changes
+    const handleCompanyChange = (e) => {
+        setCompanyName(e.target.value);
+        setSelectedLrs([]);
+        setPartyName('');
+        setBankAccountIndex(0); 
+    };
+
     const handleLrSelection = (lrId) => {
         const lr = unbilledLrs.find(l => l.id === lrId);
         if (!lr) return;
@@ -754,6 +788,7 @@ function CreateBillForm({ userId, setView, lrs, showAlert }) {
             showAlert("Party Mismatch", `Please select LRs for the same party (${partyName}).`);
         }
     };
+    
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!billNumber || selectedLrs.length === 0) {
@@ -764,22 +799,28 @@ function CreateBillForm({ userId, setView, lrs, showAlert }) {
         const totalAmount = selectedLrs.reduce((sum, lrId) => {
             const lr = lrs.find(l => l.id === lrId);
             if (!lr) return sum;
-
             const originalFreight = parseFloat(lr.billDetails?.amount) || 0;
             const ratePerTon = parseFloat(lr.billDetails?.ratePerTon) || 0;
             const weight = parseFloat(lr.loadingDetails?.weight) || 0;
-
-            let billableAmount;
-            if (ratePerTon > 0 && weight > 0) {
-                billableAmount = Math.round(ratePerTon * weight);
-            } else {
-                billableAmount = originalFreight;
-            }
-            
+            let billableAmount = (ratePerTon > 0 && weight > 0) ? Math.round(ratePerTon * weight) : originalFreight;
             return sum + billableAmount;
         }, 0);
         
-        const newBill = { billNumber, billDate, companyName, billTo, partyName, lrIds: selectedLrs, totalAmount, status: 'Due' };
+        // Get the selected bank details to save with the bill
+        const config = companyConfigs[companyName];
+        const selectedBankDetails = config.bankAccounts ? config.bankAccounts[bankAccountIndex] : null;
+
+        const newBill = { 
+            billNumber, 
+            billDate, 
+            companyName, 
+            billTo, 
+            partyName, 
+            lrIds: selectedLrs, 
+            totalAmount, 
+            status: 'Due',
+            bankDetails: selectedBankDetails // Saving the bank details permanently to this bill
+        };
         
         const batch = writeBatch(db);
         const newBillRef = doc(collection(db, 'users', userId, 'bills'));
@@ -791,15 +832,34 @@ function CreateBillForm({ userId, setView, lrs, showAlert }) {
         await batch.commit();
         setView('billing');
     };
+
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
             <h2 className="text-2xl font-bold">Create New Bill</h2>
             <Section title="Bill Details">
                 <Input label="Bill Number" value={billNumber} onChange={e => setBillNumber(e.target.value)} required />
                 <Input label="Bill Date" type="date" value={billDate} onChange={e => setBillDate(e.target.value)} />
-                <Input label="Company" value={companyName} as="select" onChange={e => {setCompanyName(e.target.value); setSelectedLrs([]); setPartyName('');}}>
+                
+                <Input label="Company" value={companyName} as="select" onChange={handleCompanyChange}>
                     <option>GLOBAL LOGISTICS</option><option>SRI KUMAR TRANSPORT</option><option>SAI KUMAR TRANSPORT</option>
                 </Input>
+
+                {/* --- NEW: Bank Selection Dropdown --- */}
+                <div className="flex flex-col">
+                    <label className="text-sm font-medium mb-1 text-slate-600">Select Bank Account</label>
+                    <select 
+                        value={bankAccountIndex} 
+                        onChange={(e) => setBankAccountIndex(Number(e.target.value))}
+                        className="p-2 border rounded-md bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    >
+                        {companyConfigs[companyName]?.bankAccounts?.map((bank, index) => (
+                            <option key={index} value={index}>
+                                {bank.name} - {bank.ac}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
                 <Input label="Bill To" value={billTo} as="select" onChange={e => {setBillTo(e.target.value); setSelectedLrs([]); setPartyName('');}}>
                     <option value="Consignee">Consignee</option><option value="Consignor">Consignor</option>
                 </Input>
@@ -811,13 +871,7 @@ function CreateBillForm({ userId, setView, lrs, showAlert }) {
                         const originalFreight = parseFloat(lr.billDetails?.amount) || 0;
                         const ratePerTon = parseFloat(lr.billDetails?.ratePerTon) || 0;
                         const weight = parseFloat(lr.loadingDetails?.weight) || 0;
-                        
-                        let displayAmount;
-                        if (ratePerTon > 0 && weight > 0) {
-                            displayAmount = Math.round(ratePerTon * weight).toFixed(2);
-                        } else {
-                            displayAmount = originalFreight.toFixed(2);
-                        }
+                        const displayAmount = (ratePerTon > 0 && weight > 0) ? Math.round(ratePerTon * weight).toFixed(2) : originalFreight.toFixed(2);
 
                         return (
                             <div key={lr.id} onClick={() => handleLrSelection(lr.id)} className={`p-3 border rounded-md cursor-pointer transition-colors ${selectedLrs.includes(lr.id) ? 'bg-indigo-100 border-indigo-300' : 'bg-white hover:bg-indigo-50'}`}>
