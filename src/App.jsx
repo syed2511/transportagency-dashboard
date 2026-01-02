@@ -68,29 +68,18 @@ const numberToWords = (num) => {
     return str.trim().toUpperCase().replace(/\s+/g, ' ') + " ONLY";
 };
 
-const companyConfigs = {
+// --- DEFAULT CONFIGS (Used if no custom settings exist) ---
+const defaultCompanyConfigs = {
     "GLOBAL LOGISTICS": {
         header: "GLOBAL LOGISTICS",
         prefix: "GL",
         address: "2-42-69/3 ILTD JUNCTION, RAJAMAHENDRAVARAM",
-        // Enrollment removed as requested previously
         panNo: "AHKPJ7246C",
         phone: "9885086504, 7396579956",
         email: "GLOBALRJY1@GMAIL.COM",
-        // --- NEW: ARRAY OF BANK ACCOUNTS ---
         bankAccounts: [
-            {
-                name: "HDFC BANK",
-                ac: "50200117398447",
-                ifsc: "HDFC0000215",
-                branch: "DANVAIPETA, RAJAHMUNDRY"
-            },
-            {
-                name: "ICICI BANK",
-                ac: "631505500740",
-                ifsc: "ICIC0006315",
-                branch: "T NAGAR, RAJAHMUNDRY"
-            }
+            { name: "HDFC BANK", ac: "50200117398447", ifsc: "HDFC0000215", branch: "DANVAIPETA, RAJAHMUNDRY" },
+            { name: "ICICI BANK", ac: "631505500740", ifsc: "ICIC0006315", branch: "T NAGAR, RAJAHMUNDRY" }
         ]
     },
     "SRI KUMAR TRANSPORT": {
@@ -100,12 +89,7 @@ const companyConfigs = {
         phone: "9885086504, 9390680009",
         email: "SKTC.RJY@GMAIL.COM",
         bankAccounts: [
-            {
-                name: "ICICI BANK",
-                ac: "631505013772",
-                ifsc: "ICIC0006315",
-                branch: "T NAGAR, RAJAHMUNDRY"
-            }
+            { name: "ICICI BANK", ac: "631505013772", ifsc: "ICIC0006315", branch: "T NAGAR, RAJAHMUNDRY" }
         ]
     },
     "SAI KUMAR TRANSPORT": {
@@ -115,37 +99,23 @@ const companyConfigs = {
         phone: "9885086504, 9390680009",
         email: "SKTC.RJY@GMAIL.COM",
         bankAccounts: [
-            {
-                name: "BANK OF MAHARASHTRA",
-                ac: "60380956429",
-                ifsc: "MAHB0001126",
-                branch: "T NAGAR, RAJAHMUNDRY"
-            }
+            { name: "BANK OF MAHARASHTRA", ac: "60380956429", ifsc: "MAHB0001126", branch: "T NAGAR, RAJAHMUNDRY" }
         ]
     }
 };
-const billNumberComparator = (billA, billB) => {
-    // Regex to split bill number into numeric part and suffix (e.g., "10-A" -> "10", "-A")
-    const regex = /(\d+)(.*)/;
 
+const billNumberComparator = (billA, billB) => {
+    const regex = /(\d+)(.*)/;
     const [matchA, numStrA, suffixA] = billA.billNumber.match(regex) || [];
     const [matchB, numStrB, suffixB] = billB.billNumber.match(regex) || [];
-
-    // Convert the numeric part to an integer
     const numA = parseInt(numStrA, 10) || 0;
     const numB = parseInt(numStrB, 10) || 0;
-
-    // 1. Compare numeric parts first (Descending order: larger number comes first/on top)
-    if (numB !== numA) {
-        return numB - numA;
-    }
-
-    // 2. If numeric parts are equal, compare suffixes lexicographically (Ascending order)
+    if (numB !== numA) return numB - numA;
     return suffixA.localeCompare(suffixB);
 };
 
 // --- PDF Generation Functions ---
-const generatePdfForBill = (bill, lrsInBill, showAlert) => {
+const generatePdfForBill = (bill, lrsInBill, showAlert, companyConfigs) => {
     try {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
@@ -166,7 +136,6 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
             doc.text(config.address, 105, yPos, { align: "center" });
         }
         
-        // --- MODIFIED: PAN/Enrollment Check ---
         if (config.panNo || config.enrollmentNo) {
             yPos += 5;
             doc.setFont("helvetica", "bold");
@@ -215,7 +184,6 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
             const weight = Number(lr.loadingDetails?.weight) || 0;
             
             let rateForPdf, freightForPdf;
-
             if (ratePerTon > 0 && weight > 0) {
                 rateForPdf = ratePerTon;
                 freightForPdf = Math.round(ratePerTon * weight);
@@ -278,16 +246,15 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
                 doc.setFont("helvetica", "bold");
                 doc.text("OUR BANK DETAILS:", 14, finalY);
                 doc.setFont("helvetica", "normal");
-
-                // --- MODIFIED: Bank Selection Logic ---
-                // Use the bank details saved in the bill, OR fallback to the first one in config
+                
+                // Logic: Use bank details saved in Bill, or fallback to first account in Config, or fallback to generic
                 const bankDetails = bill.bankDetails || (config.bankAccounts ? config.bankAccounts[0] : {});
                 
                 doc.text(bankDetails.name || config.bank || '', 14, finalY + 5);
                 doc.text(config.header, 14, finalY + 10);
                 doc.text(`ACCOUNT NO. ${bankDetails.ac || config.ac || ''}`, 14, finalY + 15);
                 doc.text(`IFSC CODE: ${bankDetails.ifsc || config.ifsc || ''}`, 14, finalY + 20);
-                doc.text(bankDetails.branch || 'RAJAHMUNDRY', 14, finalY + 25);
+                doc.text(bankDetails.branch || config.bankBranch || 'RAJAHMUNDRY', 14, finalY + 25);
                 
                 doc.setFont("helvetica", "bold");
                 doc.text(`For ${config.header}`, 196, finalY + 30, { align: "right" });
@@ -320,7 +287,7 @@ const generatePdfForBill = (bill, lrsInBill, showAlert) => {
     }
 };
 
-const generateDueStatementPDF = (party, bills, lrs, showAlert) => {
+const generateDueStatementPDF = (party, bills, lrs, showAlert, companyConfigs) => {
     try {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
@@ -641,12 +608,9 @@ function LrForm({ userId, setView, parties, existingLr, showAlert, onEditParty }
     );
 }
 
-function BillingView({ userId, setView, bills, lrs, handleDeleteRequest, showAlert, selectedMonth, setSelectedMonth }) {
-    // The billNumberComparator is defined outside this component.
-
+function BillingView({ userId, setView, bills, lrs, handleDeleteRequest, showAlert, selectedMonth, setSelectedMonth, companyConfigs }) {
     const handleDeleteBill = async (billId, lrIds) => {
         const batch = writeBatch(db);
-        // Using the user pathing now handled by the App component/global logic to ensure security context.
         const billRef = doc(db, 'users', userId, 'bills', billId);
         batch.delete(billRef);
         lrIds.forEach(lrId => {
@@ -663,7 +627,7 @@ function BillingView({ userId, setView, bills, lrs, handleDeleteRequest, showAle
         }
         const lrsInBill = bill.lrIds.map(id => lrs.find(lr => lr.id === id)).filter(Boolean);
         if (lrsInBill.length > 0) {
-            generatePdfForBill(bill, lrsInBill, showAlert);
+            generatePdfForBill(bill, lrsInBill, showAlert, companyConfigs);
         } else {
             showAlert("Data Not Found", "Shipment data for this bill could not be found.");
         }
@@ -671,7 +635,6 @@ function BillingView({ userId, setView, bills, lrs, handleDeleteRequest, showAle
     
     const handleMarkAsPaid = async (billId) => {
         try {
-            // Using the user pathing now handled by the App component/global logic to ensure security context.
             const billRef = doc(db, 'users', userId, 'bills', billId);
             await updateDoc(billRef, { status: 'Paid' });
             showAlert("Success", "Bill has been marked as paid.");
@@ -687,7 +650,6 @@ function BillingView({ userId, setView, bills, lrs, handleDeleteRequest, showAle
                 if (!selectedMonth) return true;
                 return bill.billDate.startsWith(selectedMonth);
             })
-            // *** Applying the custom alphanumeric sorting function ***
             .sort(billNumberComparator); 
     }, [bills, selectedMonth]);
 
@@ -756,23 +718,23 @@ function BillingView({ userId, setView, bills, lrs, handleDeleteRequest, showAle
         </div>
     );
 }
-function CreateBillForm({ userId, setView, lrs, showAlert }) {
+
+function CreateBillForm({ userId, setView, lrs, showAlert, companyConfigs }) {
     const [billNumber, setBillNumber] = useState('');
     const [billDate, setBillDate] = useState(new Date().toISOString().split('T')[0]);
     const [selectedLrs, setSelectedLrs] = useState([]);
     const [companyName, setCompanyName] = useState('GLOBAL LOGISTICS');
     const [billTo, setBillTo] = useState('Consignee');
     const [partyName, setPartyName] = useState('');
-    const [bankAccountIndex, setBankAccountIndex] = useState(0); // State for selected bank
+    const [bankAccountIndex, setBankAccountIndex] = useState(0);
 
     const unbilledLrs = lrs.filter(lr => !lr.isBilled && lr.companyName === companyName);
-    
-    // Reset bank selection when company changes
+
     const handleCompanyChange = (e) => {
         setCompanyName(e.target.value);
         setSelectedLrs([]);
         setPartyName('');
-        setBankAccountIndex(0); 
+        setBankAccountIndex(0);
     };
 
     const handleLrSelection = (lrId) => {
@@ -788,7 +750,6 @@ function CreateBillForm({ userId, setView, lrs, showAlert }) {
             showAlert("Party Mismatch", `Please select LRs for the same party (${partyName}).`);
         }
     };
-    
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!billNumber || selectedLrs.length === 0) {
@@ -799,14 +760,21 @@ function CreateBillForm({ userId, setView, lrs, showAlert }) {
         const totalAmount = selectedLrs.reduce((sum, lrId) => {
             const lr = lrs.find(l => l.id === lrId);
             if (!lr) return sum;
+
             const originalFreight = parseFloat(lr.billDetails?.amount) || 0;
             const ratePerTon = parseFloat(lr.billDetails?.ratePerTon) || 0;
             const weight = parseFloat(lr.loadingDetails?.weight) || 0;
-            let billableAmount = (ratePerTon > 0 && weight > 0) ? Math.round(ratePerTon * weight) : originalFreight;
+
+            let billableAmount;
+            if (ratePerTon > 0 && weight > 0) {
+                billableAmount = Math.round(ratePerTon * weight);
+            } else {
+                billableAmount = originalFreight;
+            }
+            
             return sum + billableAmount;
         }, 0);
         
-        // Get the selected bank details to save with the bill
         const config = companyConfigs[companyName];
         const selectedBankDetails = config.bankAccounts ? config.bankAccounts[bankAccountIndex] : null;
 
@@ -819,7 +787,7 @@ function CreateBillForm({ userId, setView, lrs, showAlert }) {
             lrIds: selectedLrs, 
             totalAmount, 
             status: 'Due',
-            bankDetails: selectedBankDetails // Saving the bank details permanently to this bill
+            bankDetails: selectedBankDetails
         };
         
         const batch = writeBatch(db);
@@ -832,33 +800,32 @@ function CreateBillForm({ userId, setView, lrs, showAlert }) {
         await batch.commit();
         setView('billing');
     };
-
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
             <h2 className="text-2xl font-bold">Create New Bill</h2>
             <Section title="Bill Details">
                 <Input label="Bill Number" value={billNumber} onChange={e => setBillNumber(e.target.value)} required />
                 <Input label="Bill Date" type="date" value={billDate} onChange={e => setBillDate(e.target.value)} />
-                
                 <Input label="Company" value={companyName} as="select" onChange={handleCompanyChange}>
                     <option>GLOBAL LOGISTICS</option><option>SRI KUMAR TRANSPORT</option><option>SAI KUMAR TRANSPORT</option>
                 </Input>
-
-                {/* --- NEW: Bank Selection Dropdown --- */}
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1 text-slate-600">Select Bank Account</label>
-                    <select 
-                        value={bankAccountIndex} 
-                        onChange={(e) => setBankAccountIndex(Number(e.target.value))}
-                        className="p-2 border rounded-md bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    >
-                        {companyConfigs[companyName]?.bankAccounts?.map((bank, index) => (
-                            <option key={index} value={index}>
-                                {bank.name} - {bank.ac}
-                            </option>
-                        ))}
-                    </select>
-                </div>
+                
+                {companyConfigs[companyName]?.bankAccounts && companyConfigs[companyName].bankAccounts.length > 0 && (
+                    <div className="flex flex-col">
+                        <label className="text-sm font-medium mb-1 text-slate-600">Select Bank Account</label>
+                        <select 
+                            value={bankAccountIndex} 
+                            onChange={(e) => setBankAccountIndex(Number(e.target.value))}
+                            className="p-2 border rounded-md bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        >
+                            {companyConfigs[companyName].bankAccounts.map((bank, index) => (
+                                <option key={index} value={index}>
+                                    {bank.name} - {bank.ac}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                )}
 
                 <Input label="Bill To" value={billTo} as="select" onChange={e => {setBillTo(e.target.value); setSelectedLrs([]); setPartyName('');}}>
                     <option value="Consignee">Consignee</option><option value="Consignor">Consignor</option>
@@ -871,7 +838,13 @@ function CreateBillForm({ userId, setView, lrs, showAlert }) {
                         const originalFreight = parseFloat(lr.billDetails?.amount) || 0;
                         const ratePerTon = parseFloat(lr.billDetails?.ratePerTon) || 0;
                         const weight = parseFloat(lr.loadingDetails?.weight) || 0;
-                        const displayAmount = (ratePerTon > 0 && weight > 0) ? Math.round(ratePerTon * weight).toFixed(2) : originalFreight.toFixed(2);
+                        
+                        let displayAmount;
+                        if (ratePerTon > 0 && weight > 0) {
+                            displayAmount = Math.round(ratePerTon * weight).toFixed(2);
+                        } else {
+                            displayAmount = originalFreight.toFixed(2);
+                        }
 
                         return (
                             <div key={lr.id} onClick={() => handleLrSelection(lr.id)} className={`p-3 border rounded-md cursor-pointer transition-colors ${selectedLrs.includes(lr.id) ? 'bg-indigo-100 border-indigo-300' : 'bg-white hover:bg-indigo-50'}`}>
@@ -920,7 +893,102 @@ function PartiesView({ parties, handleDelete, handleDeleteRequest, onEditParty }
     );
 }
 
-function StatementView({ bills, lrs, parties, showAlert }) {
+function BankSettingsView({ companyConfigs, setCompanyConfigs, userId, showAlert }) {
+    const [selectedCompany, setSelectedCompany] = useState(Object.keys(companyConfigs)[0]);
+    const [newAccount, setNewAccount] = useState({ name: '', ac: '', ifsc: '', branch: '' });
+
+    const handleAddAccount = async () => {
+        if (!newAccount.name || !newAccount.ac) {
+            showAlert("Validation Error", "Bank Name and Account Number are required.");
+            return;
+        }
+
+        const updatedConfig = { ...companyConfigs };
+        const companyData = updatedConfig[selectedCompany];
+        
+        if (!companyData.bankAccounts) {
+            companyData.bankAccounts = [];
+        }
+
+        companyData.bankAccounts.push({ ...newAccount });
+
+        try {
+            const settingsRef = doc(db, 'users', userId, 'settings', 'companyConfigs');
+            await setDoc(settingsRef, updatedConfig);
+            setCompanyConfigs(updatedConfig);
+            setNewAccount({ name: '', ac: '', ifsc: '', branch: '' });
+            showAlert("Success", "New bank account added successfully.");
+        } catch (error) {
+            console.error("Error saving bank settings:", error);
+            showAlert("Error", "Could not save the new bank account.");
+        }
+    };
+
+    const handleRemoveAccount = async (index) => {
+        const updatedConfig = { ...companyConfigs };
+        updatedConfig[selectedCompany].bankAccounts.splice(index, 1);
+
+        try {
+            const settingsRef = doc(db, 'users', userId, 'settings', 'companyConfigs');
+            await setDoc(settingsRef, updatedConfig);
+            setCompanyConfigs(updatedConfig);
+            showAlert("Success", "Bank account removed.");
+        } catch (error) {
+            console.error("Error removing bank account:", error);
+            showAlert("Error", "Could not remove the bank account.");
+        }
+    };
+
+    return (
+        <div className="max-w-4xl mx-auto">
+            <h2 className="text-2xl font-bold mb-6">Manage Bank Accounts</h2>
+            
+            <div className="bg-white p-6 rounded-lg shadow border mb-6">
+                <Input label="Select Company to Edit" value={selectedCompany} as="select" onChange={(e) => setSelectedCompany(e.target.value)}>
+                    {Object.keys(companyConfigs).map(name => <option key={name} value={name}>{name}</option>)}
+                </Input>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-slate-50 p-4 rounded-lg border">
+                    <h3 className="font-bold text-lg mb-4 text-slate-700">Existing Accounts</h3>
+                    <div className="space-y-3">
+                        {companyConfigs[selectedCompany].bankAccounts?.map((account, index) => (
+                            <div key={index} className="p-3 bg-white border rounded shadow-sm flex justify-between items-start">
+                                <div>
+                                    <p className="font-bold text-indigo-700">{account.name}</p>
+                                    <p className="text-sm">A/C: {account.ac}</p>
+                                    <p className="text-sm">IFSC: {account.ifsc}</p>
+                                    <p className="text-sm text-slate-500">{account.branch}</p>
+                                </div>
+                                <button onClick={() => handleRemoveAccount(index)} className="text-red-500 hover:text-red-700 text-sm font-semibold">
+                                    Remove
+                                </button>
+                            </div>
+                        ))}
+                        {(!companyConfigs[selectedCompany].bankAccounts || companyConfigs[selectedCompany].bankAccounts.length === 0) && (
+                            <p className="text-slate-500 italic">No bank accounts configured.</p>
+                        )}
+                    </div>
+                </div>
+
+                <div className="bg-white p-4 rounded-lg border shadow-sm h-fit">
+                    <h3 className="font-bold text-lg mb-4 text-slate-700">Add New Account</h3>
+                    <div className="space-y-3">
+                        <Input label="Bank Name" value={newAccount.name} onChange={(e) => setNewAccount({...newAccount, name: e.target.value})} placeholder="e.g., HDFC Bank" />
+                        <Input label="Account Number" value={newAccount.ac} onChange={(e) => setNewAccount({...newAccount, ac: e.target.value})} />
+                        <Input label="IFSC Code" value={newAccount.ifsc} onChange={(e) => setNewAccount({...newAccount, ifsc: e.target.value})} />
+                        <Input label="Branch / Address" value={newAccount.branch} onChange={(e) => setNewAccount({...newAccount, branch: e.target.value})} placeholder="e.g., Danvaipeta, Rajahmundry" />
+                        <button onClick={handleAddAccount} className="w-full btn-primary mt-2">Add Account</button>
+                    </div>
+                </div>
+            </div>
+            <style>{`.btn-primary{background:#4F46E5; color:white; padding:8px 16px; border-radius:8px; font-weight:500;} .btn-primary:hover{background:#4338CA;}`}</style>
+        </div>
+    );
+}
+
+function StatementView({ bills, lrs, parties, showAlert, companyConfigs }) {
     const dueBillsByPartyAndCompany = bills.filter(b => b.status === 'Due' || !b.status).reduce((acc, bill) => {
         const party = parties.find(p => p.name === bill.partyName);
         if (party) {
@@ -949,7 +1017,7 @@ function StatementView({ bills, lrs, parties, showAlert }) {
             address: statementGroup.partyAddress,
             companyName: statementGroup.companyName
         };
-        generateDueStatementPDF(partyInfo, statementGroup.bills, lrs, showAlert);
+        generateDueStatementPDF(partyInfo, statementGroup.bills, lrs, showAlert, companyConfigs);
     };
 
     const handleExportAllDues = () => {
@@ -1093,15 +1161,37 @@ function App() {
     const [editingParty, setEditingParty] = useState(null);
     const [isPartyModalOpen, setIsPartyModalOpen] = useState(false);
     const [dataLoaded, setDataLoaded] = useState(false);
-    const [scriptsLoaded, setScriptsLoaded] = useState(false); // <-- NEW: State for CDN scripts
+    const [scriptsLoaded, setScriptsLoaded] = useState(false); 
     const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
     
-    
+    // -- NEW: State for Company Configs (initialized with defaults) --
+    const [configs, setConfigs] = useState(defaultCompanyConfigs);
+
     const showAlert = useCallback((title, message) => {
         setAlertInfo({ title, message });
     }, []);
     
-    // --- NEW: Effect for loading external scripts for PDF/Excel export ---
+    // --- NEW: Load Custom Settings from Firestore on Login ---
+    useEffect(() => {
+        if (!user) return;
+        const fetchSettings = async () => {
+            try {
+                // We use a specific ID 'companyConfigs' in a 'settings' subcollection
+                const settingsRef = doc(db, 'users', user.uid, 'settings', 'companyConfigs');
+                const snap = await getDoc(settingsRef);
+                
+                if (snap.exists()) {
+                    setConfigs(snap.data());
+                } else {
+                    console.log("No custom settings found, using defaults.");
+                }
+            } catch (err) {
+                console.error("Error fetching settings:", err);
+            }
+        };
+        fetchSettings();
+    }, [user]);
+
     useEffect(() => {
         const loadScript = (src) => new Promise((resolve, reject) => {
             if (document.querySelector(`script[src="${src}"]`)) {
@@ -1125,7 +1215,6 @@ function App() {
             });
     }, [showAlert]);
     
-    // --- UPDATED: Auth listener with modern syntax ---
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
             setUser(user);
@@ -1138,7 +1227,6 @@ function App() {
         return () => unsubscribe();
     }, []);
     
-    // --- UPDATED: Data listeners with modern syntax ---
     useEffect(() => {
         if (!user) {
             setDataLoaded(false);
@@ -1209,7 +1297,6 @@ function App() {
     
     const handleCancelDelete = () => setConfirmation(null);
 
-    // --- UPDATED: Delete function with modern syntax ---
     const handleDelete = useCallback(async (id, collectionName) => {
         if (!user) return;
         try {
@@ -1226,7 +1313,6 @@ function App() {
         setIsPartyModalOpen(true);
     };
     
-    // --- UPDATED: Save Party function with cascading updates and modern syntax ---
     const handleSaveParty = async (partyData) => {
         if (!user) {
             showAlert("Error", "You must be logged in.");
@@ -1234,7 +1320,7 @@ function App() {
         }
 
         try {
-            if (partyData.id) { // Logic for UPDATING an existing party
+            if (partyData.id) {
                 const { id, ...dataToSave } = partyData;
                 const batch = writeBatch(db);
                 
@@ -1242,37 +1328,32 @@ function App() {
                 if (!originalParty) throw new Error("Could not find the original party data.");
                 const originalName = originalParty.name;
 
-                // 1. Update the main party document
                 const partyRef = doc(db, 'users', user.uid, 'parties', id);
                 batch.update(partyRef, dataToSave);
 
-                // 2. Find and update all LRs where this party was the consignor
                 const lrsAsConsignorQuery = query(collection(db, 'users', user.uid, 'lrs'), where('consignor.name', '==', originalName));
                 const lrsAsConsignorSnapshot = await getDocs(lrsAsConsignorQuery);
                 lrsAsConsignorSnapshot.forEach(docSnap => {
                     batch.update(docSnap.ref, { consignor: dataToSave });
                 });
 
-                // 3. Find and update all LRs where this party was the consignee
                 const lrsAsConsigneeQuery = query(collection(db, 'users', user.uid, 'lrs'), where('consignee.name', '==', originalName));
                 const lrsAsConsigneeSnapshot = await getDocs(lrsAsConsigneeQuery);
                 lrsAsConsigneeSnapshot.forEach(docSnap => {
                     batch.update(docSnap.ref, { consignee: dataToSave });
                 });
 
-                // 4. Find and update all Bills for this party
                 const billsQuery = query(collection(db, 'users', user.uid, 'bills'), where('partyName', '==', originalName));
                 const billsSnapshot = await getDocs(billsQuery);
                 billsSnapshot.forEach(docSnap => {
                     batch.update(docSnap.ref, { partyName: dataToSave.name });
                 });
                 
-                // 5. Commit all changes
                 await batch.commit();
                 showAlert("Success", "Party updated successfully across all records.");
 
-            } else { // Logic for ADDING a new party
-                await addDoc(collection(db, 'users', user.uid, 'parties'), partyData);
+            } else {
+                await addDoc(collection(db, 'users', user.uid, 'parties', partyData));
                 showAlert("Success", "New party added successfully.");
             }
         } catch (error) {
@@ -1289,18 +1370,27 @@ function App() {
     };
     
     const renderView = () => {
-        const props = { userId: user?.uid, setView: handleSetView, lrs, bills, parties, handleDeleteRequest, handleDelete, showAlert, onEditParty: handleOpenPartyModal, selectedMonth, setSelectedMonth };
+        const props = { 
+            userId: user?.uid, 
+            setView: handleSetView, 
+            lrs, bills, parties, 
+            handleDeleteRequest, handleDelete, showAlert, 
+            onEditParty: handleOpenPartyModal, 
+            selectedMonth, setSelectedMonth,
+            companyConfigs: configs, // Pass dynamic configs
+            setCompanyConfigs: setConfigs // Pass setter for Bank Settings
+        };
         switch (view) {
             case 'add_lr': return <LrForm {...props} existingLr={editingLr} />;
             case 'billing': return <BillingView {...props} />;
             case 'create_bill': return <CreateBillForm {...props} />;
             case 'parties': return <PartiesView {...props} />;
             case 'statements': return <StatementView {...props}/>;
+            case 'banks': return <BankSettingsView {...props} />; // New View
             case 'lrs': default: return <LrView {...props} handleEditLr={handleEditLr} />;
         }
     };
 
-    // --- UPDATED: Loading state now checks for scriptsLoaded as well ---
     if (loading || (!dataLoaded && user) || (!scriptsLoaded && user)) {
         return <div className="min-h-screen flex items-center justify-center bg-slate-50"><p className="text-xl font-semibold text-slate-500">Loading Application...</p></div>;
     }
@@ -1327,6 +1417,7 @@ function App() {
                     <NavButton icon={<DollarSignIcon />} label="Billing" active={view === 'billing' || view === 'create_bill'} onClick={() => handleSetView('billing')} />
                     <NavButton icon={<UsersIcon />} label="Parties" active={view === 'parties'} onClick={() => handleSetView('parties')} />
                     <NavButton icon={<BriefcaseIcon />} label="Statements" active={view === 'statements'} onClick={() => handleSetView('statements')} />
+                    <NavButton icon={<BriefcaseIcon />} label="Banks" active={view === 'banks'} onClick={() => handleSetView('banks')} />
                 </nav>
                 <main className="bg-white rounded-lg shadow p-4 sm:p-6">{renderView()}</main>
             </div>
