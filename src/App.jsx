@@ -74,8 +74,8 @@ const defaultCompanyConfigs = {
         header: "GLOBAL LOGISTICS",
         prefix: "GL",
         address: "2-42-69/3 ILTD JUNCTION, RAJAMAHENDRAVARAM",
-        panNo: "AHKPJ7246C",
-        phone: "9885086504, 7396579956",
+        panNo: "LJBPS6830H",
+        phone: "9885086504, 7981658659",
         email: "GLOBALRJY1@GMAIL.COM",
         bankAccounts: [
             { name: "HDFC BANK", ac: "50200117398447", ifsc: "HDFC0000215", branch: "DANVAIPETA, RAJAHMUNDRY" },
