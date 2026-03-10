@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { db, auth } from './firebaseConfig.js'; // Uses your local configuration
+import { db, auth } from './firebaseConfig.js';
 import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { collection, onSnapshot, doc, addDoc, setDoc, updateDoc, deleteDoc, where, query, writeBatch, getDocs, getDoc } from "firebase/firestore";
 
@@ -103,7 +103,7 @@ const generatePdfForBill = (bill, lrsInBill, showAlert, companyConfigs) => {
     try {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        const config = companyConfigs[bill.companyName] || defaultCompanyConfigs[bill.companyName];
+        const config = companyConfigs[bill.companyName];
         if (!config) { showAlert("Config Error", `No bill format configured for ${bill.companyName}`); return; }
         const party = bill.billTo === 'Consignor' ? lrsInBill[0].consignor : lrsInBill[0].consignee;
 
@@ -264,7 +264,7 @@ const generateDueStatementPDF = (party, bills, lrs, showAlert, companyConfigs) =
     try {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        const config = companyConfigs[party.companyName] || defaultCompanyConfigs[party.companyName] || { header: party.companyName };
+        const config = companyConfigs[party.companyName] || { header: party.companyName };
         
         doc.setFontSize(18);
         doc.setFont('helvetica', 'bold');
@@ -1068,9 +1068,14 @@ function LoginScreen({ showAlert }) {
         e.preventDefault();
         if (!email || !password) { showAlert("Authentication Error", "Please enter both email and password."); return; }
         try {
-            if (isRegistering) await createUserWithEmailAndPassword(auth, email, password);
-            else await signInWithEmailAndPassword(auth, email, password);
-        } catch (error) { showAlert("Authentication Failed", error.message); }
+            if (isRegistering) {
+                await createUserWithEmailAndPassword(auth, email, password);
+            } else {
+                await signInWithEmailAndPassword(auth, email, password);
+            }
+        } catch (error) { 
+            showAlert("Authentication Failed", error.message); 
+        }
     };
     return (
         <div className="min-h-screen bg-slate-100 flex flex-col justify-center items-center p-4">
@@ -1082,7 +1087,7 @@ function LoginScreen({ showAlert }) {
                     <Input label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
                     <div><button type="submit" className="w-full bg-indigo-600 text-white p-3 rounded-md font-semibold hover:bg-indigo-700 transition-colors">{isRegistering ? 'Sign Up' : 'Sign In'}</button></div>
                 </form>
-                <div className="mt-6 text-center"><button onClick={() => setIsRegistering(!isRegistering)} className="text-sm text-indigo-600 hover:underline">{isRegistering ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}</button></div>
+                <div className="mt-6 text-center"><button type="button" onClick={() => setIsRegistering(!isRegistering)} className="text-sm text-indigo-600 hover:underline">{isRegistering ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}</button></div>
             </div>
         </div>
     );
@@ -1134,44 +1139,36 @@ function App() {
     }, [showAlert]);
     
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-            setUser(user);
+        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+            setUser(currentUser); 
             setLoading(false);
-            if (!user) {
-                setDataLoaded(false);
-                localStorage.clear();
+            if (!currentUser) { 
+                setDataLoaded(false); 
+                localStorage.clear(); 
             }
         });
         return () => unsubscribe();
     }, []);
     
     useEffect(() => {
-        if (!user) {
-            setDataLoaded(false);
-            setLrs([]); setBills([]); setParties([]);
-            return;
+        if (!user) { 
+            setDataLoaded(false); 
+            setLrs([]); 
+            setBills([]); 
+            setParties([]); 
+            return; 
         }
 
-        const collectionsToWatch = {
-            lrs: setLrs,
-            bills: setBills,
-            parties: setParties
-        };
-
-        const unsubscribers = Object.entries(collectionsToWatch).map(([path, setter]) => {
-            const q = query(collection(db, 'users', user.uid, path));
-            return onSnapshot(q, (snapshot) => {
-                const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-                setter(data);
-            }, (error) => {
-                console.error(`Firestore listener error on ${path}:`, error);
-                showAlert("Database Error", `Failed to load data for ${path}. Please refresh the page.`);
+        const unsubscribers = ['lrs', 'bills', 'parties'].map(path => {
+            const setter = path === 'lrs' ? setLrs : path === 'bills' ? setBills : setParties;
+            return onSnapshot(query(collection(db, 'users', user.uid, path)), (snapshot) => {
+                setter(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
             });
         });
-
+        
         setDataLoaded(true);
         return () => unsubscribers.forEach(unsub => unsub());
-    }, [user, showAlert]);
+    }, [user]);
 
     const handleSetView = (newView) => { setEditingLr(null); setEditingBill(null); localStorage.removeItem('editingLrId'); setView(newView); };
     const handleEditLr = (lr) => { localStorage.setItem('editingLrId', lr.id); setEditingLr(lr); setView('add_lr'); };
@@ -1191,6 +1188,7 @@ function App() {
     const handleDeleteRequest = useCallback((message, onConfirmAction) => setConfirmation({ message, onConfirm: onConfirmAction }), []);
     const handleConfirmDelete = () => { if (confirmation?.onConfirm) confirmation.onConfirm(); setConfirmation(null); };
     const handleCancelDelete = () => setConfirmation(null);
+    
     const handleDelete = useCallback(async (id, collectionName) => {
         if (!user) return;
         try { await deleteDoc(doc(db, 'users', user.uid, collectionName, id)); } 
@@ -1240,36 +1238,40 @@ function App() {
         }
     };
 
-    if (loading || (!dataLoaded && user) || (!scriptsLoaded && user)) {
-        return <div className="min-h-screen flex items-center justify-center bg-slate-50"><p className="text-xl font-semibold text-slate-500">Loading Application...</p></div>;
-    }
-    
-    if (!user) {
-        return <LoginScreen showAlert={showAlert} />;
-    }
-    
     return (
-        <div className="bg-slate-50 min-h-screen font-sans text-slate-800">
-            {isPartyModalOpen && <PartyFormModal party={editingParty} onSave={handleSaveParty} onCancel={() => setIsPartyModalOpen(false)} showAlert={showAlert} />}
-            {confirmation && <ConfirmModal message={confirmation.message} onConfirm={handleConfirmDelete} onCancel={handleCancelDelete} />}
+        <>
             {alertInfo && <AlertModal title={alertInfo.title} message={alertInfo.message} onClose={() => setAlertInfo(null)} />}
-            <div className="container mx-auto p-2 sm:p-4">
-                <header className="bg-white rounded-lg shadow p-4 mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div className="flex items-center gap-3"><TruckIcon className="h-8 w-8 text-indigo-600" /><h1 className="text-xl sm:text-2xl font-bold">Transport Dashboard</h1></div>
-                    <div className="flex gap-2 items-center">
-                        <button onClick={() => signOut(auth)} className="flex items-center gap-2 text-sm font-semibold text-red-500 hover:text-red-700 transition-colors"><LogOutIcon className="h-5 w-5"/>Logout</button>
+            {confirmation && <ConfirmModal message={confirmation.message} onConfirm={handleConfirmDelete} onCancel={handleCancelDelete} />}
+            
+            {loading ? (
+                <div className="min-h-screen flex items-center justify-center bg-slate-50"><p className="text-xl font-semibold text-slate-500">Loading Application...</p></div>
+            ) : !user ? (
+                <LoginScreen showAlert={showAlert} />
+            ) : (!dataLoaded || !scriptsLoaded) ? (
+                <div className="min-h-screen flex items-center justify-center bg-slate-50"><p className="text-xl font-semibold text-slate-500">Loading Dashboard Data...</p></div>
+            ) : (
+                <div className="bg-slate-50 min-h-screen font-sans text-slate-800">
+                    {isPartyModalOpen && <PartyFormModal party={editingParty} onSave={handleSaveParty} onCancel={() => setIsPartyModalOpen(false)} showAlert={showAlert} />}
+                    
+                    <div className="container mx-auto p-2 sm:p-4">
+                        <header className="bg-white rounded-lg shadow p-4 mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                            <div className="flex items-center gap-3"><TruckIcon className="h-8 w-8 text-indigo-600" /><h1 className="text-xl sm:text-2xl font-bold">Transport Dashboard</h1></div>
+                            <div className="flex gap-2 items-center">
+                                <button onClick={() => signOut(auth)} className="flex items-center gap-2 text-sm font-semibold text-red-500 hover:text-red-700 transition-colors"><LogOutIcon className="h-5 w-5"/>Logout</button>
+                            </div>
+                        </header>
+                        <nav className="bg-white rounded-lg shadow p-2 flex flex-wrap gap-2 mb-6">
+                            <NavButton icon={<FileTextIcon />} label="LRs" active={view === 'lrs' || view === 'add_lr'} onClick={() => handleSetView('lrs')} />
+                            <NavButton icon={<DollarSignIcon />} label="Billing" active={view === 'billing' || view === 'create_bill'} onClick={() => handleSetView('billing')} />
+                            <NavButton icon={<UsersIcon />} label="Parties" active={view === 'parties'} onClick={() => handleSetView('parties')} />
+                            <NavButton icon={<BriefcaseIcon />} label="Statements" active={view === 'statements'} onClick={() => handleSetView('statements')} />
+                            <NavButton icon={<SettingsIcon />} label="Settings" active={view === 'company_settings'} onClick={() => handleSetView('company_settings')} />
+                        </nav>
+                        <main className="bg-white rounded-lg shadow p-4 sm:p-6">{renderView()}</main>
                     </div>
-                </header>
-                <nav className="bg-white rounded-lg shadow p-2 flex flex-wrap gap-2 mb-6">
-                    <NavButton icon={<FileTextIcon />} label="LRs" active={view === 'lrs' || view === 'add_lr'} onClick={() => handleSetView('lrs')} />
-                    <NavButton icon={<DollarSignIcon />} label="Billing" active={view === 'billing' || view === 'create_bill'} onClick={() => handleSetView('billing')} />
-                    <NavButton icon={<UsersIcon />} label="Parties" active={view === 'parties'} onClick={() => handleSetView('parties')} />
-                    <NavButton icon={<BriefcaseIcon />} label="Statements" active={view === 'statements'} onClick={() => handleSetView('statements')} />
-                    <NavButton icon={<SettingsIcon />} label="Settings" active={view === 'company_settings'} onClick={() => handleSetView('company_settings')} />
-                </nav>
-                <main className="bg-white rounded-lg shadow p-4 sm:p-6">{renderView()}</main>
-            </div>
-        </div>
+                </div>
+            )}
+        </>
     );
 }
 
