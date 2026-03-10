@@ -5,16 +5,12 @@ import { getFirestore, collection, onSnapshot, doc, addDoc, setDoc, updateDoc, d
 
 /* =======================================================================
   LOCAL DEVELOPMENT INSTRUCTIONS:
-  To use this code in your local project, make the following 2 changes:
-
-  1. Replace the Firebase Initialization block below with your import:
-     import { db, auth } from './firebaseConfig.js';
-     
-  2. In your local editor, do a "Find and Replace All":
-     Find:    'artifacts', appId, 'users', 
-     Replace: 'users',
-  =======================================================================
-*/
+  To use this code in your local project:
+  
+  1. Remove the "Canvas Environment" initialization block below.
+  2. Uncomment this line to use your local Firebase config:
+     // import { db, auth } from './firebaseConfig.js';
+  ======================================================================= */
 
 // --- Firebase Initialization (Canvas Environment) ---
 const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
@@ -22,6 +18,10 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+// Helper to handle both Canvas and Local database paths automatically
+const getCollPath = (userId, path) => typeof __app_id !== 'undefined' ? `artifacts/${appId}/users/${userId}/${path}` : `users/${userId}/${path}`;
+
 
 // --- Icon Components ---
 const TruckIcon = (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M5 18H3c-.6 0-1-.4-1-1V7c0-.6.4-1 1-1h10c.6 0 1 .4 1 1v11" /><path d="M14 9h4l4 4v4h-8v-4l-4-4Z" /><path d="M10 18h4" /><circle cx="7" cy="18" r="2" /><circle cx="17" cy="18" r="2" /></svg>;
@@ -516,10 +516,10 @@ function LrForm({ userId, setView, parties, existingLr, showAlert, onEditParty }
         try {
             if (existingLr && existingLr.id) {
                 const { id, ...dataToSave } = finalFormData;
-                const lrRef = doc(db, typeof __app_id !== 'undefined' ? `artifacts/${appId}/users/${userId}/lrs` : `users/${userId}/lrs`, id);
+                const lrRef = doc(db, getCollPath(userId, 'lrs'), id);
                 await setDoc(lrRef, dataToSave);
             } else {
-                await addDoc(collection(db, typeof __app_id !== 'undefined' ? `artifacts/${appId}/users/${userId}/lrs` : `users/${userId}/lrs`), finalFormData);
+                await addDoc(collection(db, getCollPath(userId, 'lrs')), finalFormData);
             }
             showAlert("Success", `LR #${finalFormData.lrNumber} saved successfully!`);
             setView('lrs');
@@ -579,10 +579,10 @@ function BillingView({ userId, setView, bills, lrs, handleDeleteRequest, handleE
 
     const handleDeleteBill = async (billId, lrIds) => {
         const batch = writeBatch(db);
-        const billRef = doc(db, typeof __app_id !== 'undefined' ? `artifacts/${appId}/users/${userId}/bills` : `users/${userId}/bills`, billId);
+        const billRef = doc(db, getCollPath(userId, 'bills'), billId);
         batch.delete(billRef);
         lrIds.forEach(lrId => {
-            const lrRef = doc(db, typeof __app_id !== 'undefined' ? `artifacts/${appId}/users/${userId}/lrs` : `users/${userId}/lrs`, lrId);
+            const lrRef = doc(db, getCollPath(userId, 'lrs'), lrId);
             batch.update(lrRef, { isBilled: false });
         });
         await batch.commit();
@@ -597,7 +597,7 @@ function BillingView({ userId, setView, bills, lrs, handleDeleteRequest, handleE
 
     const handleSavePayment = async (paymentData) => {
         try {
-            const billRef = doc(db, typeof __app_id !== 'undefined' ? `artifacts/${appId}/users/${userId}/bills` : `users/${userId}/bills`, paymentBill.id);
+            const billRef = doc(db, getCollPath(userId, 'bills'), paymentBill.id);
             await updateDoc(billRef, paymentData);
             setPaymentBill(null);
             showAlert("Success", "Payment details saved successfully.");
@@ -723,12 +723,12 @@ function CreateBillForm({ userId, setView, lrs, showAlert, companyConfigs, editi
         
         const batch = writeBatch(db);
         if (editingBill) {
-            batch.update(doc(db, typeof __app_id !== 'undefined' ? `artifacts/${appId}/users/${userId}/bills` : `users/${userId}/bills`, editingBill.id), newBillData);
-            editingBill.lrIds.filter(id => !selectedLrs.includes(id)).forEach(id => batch.update(doc(db, typeof __app_id !== 'undefined' ? `artifacts/${appId}/users/${userId}/lrs` : `users/${userId}/lrs`, id), { isBilled: false }));
+            batch.update(doc(db, getCollPath(userId, 'bills'), editingBill.id), newBillData);
+            editingBill.lrIds.filter(id => !selectedLrs.includes(id)).forEach(id => batch.update(doc(db, getCollPath(userId, 'lrs'), id), { isBilled: false }));
         } else {
-            batch.set(doc(collection(db, typeof __app_id !== 'undefined' ? `artifacts/${appId}/users/${userId}/bills` : `users/${userId}/bills`)), newBillData);
+            batch.set(doc(collection(db, getCollPath(userId, 'bills'))), newBillData);
         }
-        selectedLrs.forEach(lrId => batch.update(doc(db, typeof __app_id !== 'undefined' ? `artifacts/${appId}/users/${userId}/lrs` : `users/${userId}/lrs`, lrId), { isBilled: true }));
+        selectedLrs.forEach(lrId => batch.update(doc(db, getCollPath(userId, 'lrs'), lrId), { isBilled: true }));
         await batch.commit();
         setView('billing');
     };
@@ -850,7 +850,7 @@ function CompanySettingsView({ companyConfigs, setCompanyConfigs, userId, showAl
             [selectedCompany]: { ...companyConfigs[selectedCompany], ...details } 
         };
         try {
-            await setDoc(doc(db, typeof __app_id !== 'undefined' ? `artifacts/${appId}/users/${userId}/settings` : `users/${userId}/settings`, 'companyConfigs'), updatedConfig);
+            await setDoc(doc(db, getCollPath(userId, 'settings'), 'companyConfigs'), updatedConfig);
             setCompanyConfigs(updatedConfig);
             showAlert("Success", "Company details successfully updated!");
         } catch (error) {
@@ -866,7 +866,7 @@ function CompanySettingsView({ companyConfigs, setCompanyConfigs, userId, showAl
         updatedConfig[selectedCompany].bankAccounts.push({ ...newAccount });
 
         try {
-            await setDoc(doc(db, typeof __app_id !== 'undefined' ? `artifacts/${appId}/users/${userId}/settings` : `users/${userId}/settings`, 'companyConfigs'), updatedConfig);
+            await setDoc(doc(db, getCollPath(userId, 'settings'), 'companyConfigs'), updatedConfig);
             setCompanyConfigs(updatedConfig);
             setNewAccount({ name: '', ac: '', ifsc: '', branch: '' });
             showAlert("Success", "Bank account added.");
@@ -877,7 +877,7 @@ function CompanySettingsView({ companyConfigs, setCompanyConfigs, userId, showAl
         const updatedConfig = { ...companyConfigs };
         updatedConfig[selectedCompany].bankAccounts.splice(index, 1);
         try {
-            await setDoc(doc(db, typeof __app_id !== 'undefined' ? `artifacts/${appId}/users/${userId}/settings` : `users/${userId}/settings`, 'companyConfigs'), updatedConfig);
+            await setDoc(doc(db, getCollPath(userId, 'settings'), 'companyConfigs'), updatedConfig);
             setCompanyConfigs(updatedConfig);
             showAlert("Success", "Bank account removed.");
         } catch (error) { showAlert("Error", "Could not remove bank account."); }
@@ -1133,7 +1133,7 @@ function App() {
         if (!user) return;
         const fetchSettings = async () => {
             try {
-                const snap = await getDoc(doc(db, typeof __app_id !== 'undefined' ? `artifacts/${appId}/users/${user.uid}/settings` : `users/${user.uid}/settings`, 'companyConfigs'));
+                const snap = await getDoc(doc(db, getCollPath(user.uid, 'settings'), 'companyConfigs'));
                 if (snap.exists()) setConfigs(snap.data());
             } catch (err) { console.error("Error fetching settings:", err); }
         };
@@ -1178,7 +1178,7 @@ function App() {
         if (!user) { setDataLoaded(false); setLrs([]); setBills([]); setParties([]); return; }
         const unsubscribers = ['lrs', 'bills', 'parties'].map(path => {
             const setter = path === 'lrs' ? setLrs : path === 'bills' ? setBills : setParties;
-            return onSnapshot(query(collection(db, typeof __app_id !== 'undefined' ? `artifacts/${appId}/users/${user.uid}/${path}` : `users/${user.uid}/${path}`)), (snapshot) => {
+            return onSnapshot(query(collection(db, getCollPath(user.uid, path))), (snapshot) => {
                 setter(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
             });
         });
@@ -1206,7 +1206,7 @@ function App() {
     const handleCancelDelete = () => setConfirmation(null);
     const handleDelete = useCallback(async (id, collectionName) => {
         if (!user) return;
-        try { await deleteDoc(doc(db, typeof __app_id !== 'undefined' ? `artifacts/${appId}/users/${user.uid}/${collectionName}` : `users/${user.uid}/${collectionName}`, id)); } 
+        try { await deleteDoc(doc(db, getCollPath(user.uid, collectionName), id)); } 
         catch (error) { showAlert("Deletion Failed", `Could not delete the item from ${collectionName}.`); }
     }, [user, showAlert]);
     
@@ -1219,89 +1219,25 @@ function App() {
                 const { id, ...dataToSave } = partyData;
                 const batch = writeBatch(db);
                 const originalParty = parties.find(p => p.id === id);
-                batch.update(doc(db, typeof __app_id !== 'undefined' ? `artifacts/${appId}/users/${user.uid}/parties` : `users/${user.uid}/parties`, id), dataToSave);
+                batch.update(doc(db, getCollPath(user.uid, 'parties'), id), dataToSave);
 
-                const lrsCnorSnap = await getDocs(query(collection(db, typeof __app_id !== 'undefined' ? `artifacts/${appId}/users/${user.uid}/lrs` : `users/${user.uid}/lrs`), where('consignor.name', '==', originalParty.name)));
+                const lrsCnorSnap = await getDocs(query(collection(db, getCollPath(user.uid, 'lrs')), where('consignor.name', '==', originalParty.name)));
                 lrsCnorSnap.forEach(docSnap => batch.update(docSnap.ref, { consignor: dataToSave }));
 
-                const lrsCneeSnap = await getDocs(query(collection(db, typeof __app_id !== 'undefined' ? `artifacts/${appId}/users/${user.uid}/lrs` : `users/${user.uid}/lrs`), where('consignee.name', '==', originalParty.name)));
+                const lrsCneeSnap = await getDocs(query(collection(db, getCollPath(user.uid, 'lrs')), where('consignee.name', '==', originalParty.name)));
                 lrsCneeSnap.forEach(docSnap => batch.update(docSnap.ref, { consignee: dataToSave }));
 
-                const billsSnap = await getDocs(query(collection(db, typeof __app_id !== 'undefined' ? `artifacts/${appId}/users/${user.uid}/bills` : `users/${user.uid}/bills`), where('partyName', '==', originalParty.name)));
+                const billsSnap = await getDocs(query(collection(db, getCollPath(user.uid, 'bills')), where('partyName', '==', originalParty.name)));
                 billsSnap.forEach(docSnap => batch.update(docSnap.ref, { partyName: dataToSave.name }));
                 
                 await batch.commit();
                 showAlert("Success", "Party updated successfully across all records.");
             } else {
-                await addDoc(collection(db, typeof __app_id !== 'undefined' ? `artifacts/${appId}/users/${user.uid}/parties` : `users/${user.uid}/parties`), { ...partyData, createdAt: new Date().toISOString() });
+                await addDoc(collection(db, getCollPath(user.uid, 'parties')), { ...partyData, createdAt: new Date().toISOString() });
                 showAlert("Success", "New party added successfully.");
             }
         } catch (error) { showAlert("Save Failed", "Could not save the party details."); } 
         finally { setIsPartyModalOpen(false); setEditingParty(null); }
-    };
-
-    const injectTestData = async () => {
-        if (!user) return;
-        try {
-            const batch = writeBatch(db);
-            const getPath = (coll) => typeof __app_id !== 'undefined' ? `artifacts/${appId}/users/${user.uid}/${coll}` : `users/${user.uid}/${coll}`;
-
-            const party1Ref = doc(collection(db, getPath('parties')));
-            const party2Ref = doc(collection(db, getPath('parties')));
-
-            const party1 = { name: "Acme Corp", address: "123 Industrial Park, Delhi", gstin: "22AAAAA0000A1Z5", mobile: "9876543210", createdAt: new Date().toISOString() };
-            const party2 = { name: "Globex Inc", address: "456 Business Rd, Mumbai", gstin: "33BBBBB0000B1Z5", mobile: "9123456780", createdAt: new Date().toISOString() };
-
-            batch.set(party1Ref, party1);
-            batch.set(party2Ref, party2);
-
-            const lr1Ref = doc(collection(db, getPath('lrs')));
-            const lr2Ref = doc(collection(db, getPath('lrs')));
-            const lr3Ref = doc(collection(db, getPath('lrs')));
-            const lr4Ref = doc(collection(db, getPath('lrs')));
-
-            batch.set(lr1Ref, {
-                companyName: 'SAI KUMAR TRANSPORT', lrNumber: '1001', bookingDate: '2026-03-01',
-                truckDetails: { truckNumbers: ['AP16TH1234'] }, loadingDetails: { loadingPoint: 'Delhi', unloadingPoint: 'Mumbai', articles: '100 Boxes', weight: '10' },
-                consignor: { name: party1.name, address: party1.address, gstin: party1.gstin }, consignee: { name: party2.name, address: party2.address, gstin: party2.gstin },
-                billDetails: { amount: '15000', ratePerTon: '1500' }, isBilled: true
-            });
-
-            batch.set(lr2Ref, {
-                companyName: 'SAI KUMAR TRANSPORT', lrNumber: '1001-A', bookingDate: '2026-03-02',
-                truckDetails: { truckNumbers: ['AP16TH5678'] }, loadingDetails: { loadingPoint: 'Delhi', unloadingPoint: 'Mumbai', articles: '50 Boxes', weight: '5' },
-                consignor: { name: party1.name, address: party1.address, gstin: party1.gstin }, consignee: { name: party2.name, address: party2.address, gstin: party2.gstin },
-                billDetails: { amount: '7500', ratePerTon: '1500' }, isBilled: true
-            });
-
-            batch.set(lr3Ref, {
-                companyName: 'GLOBAL LOGISTICS', lrNumber: '1002', bookingDate: '2026-03-05',
-                truckDetails: { truckNumbers: ['AP16TH9999'] }, loadingDetails: { loadingPoint: 'Mumbai', unloadingPoint: 'Delhi', articles: '200 Bags', weight: '20' },
-                consignor: { name: party2.name, address: party2.address, gstin: party2.gstin }, consignee: { name: party1.name, address: party1.address, gstin: party1.gstin },
-                billDetails: { amount: '20000', ratePerTon: '1000' }, isBilled: false
-            });
-            
-            batch.set(lr4Ref, {
-                companyName: 'GLOBAL LOGISTICS', lrNumber: '1003', bookingDate: '2026-03-08',
-                truckDetails: { truckNumbers: ['AP16TH1111'] }, loadingDetails: { loadingPoint: 'Mumbai', unloadingPoint: 'Delhi', articles: '100 Bags', weight: '10' },
-                consignor: { name: party2.name, address: party2.address, gstin: party2.gstin }, consignee: { name: party1.name, address: party1.address, gstin: party1.gstin },
-                billDetails: { amount: '10000', ratePerTon: '1000' }, isBilled: false
-            });
-
-            const bill1Ref = doc(collection(db, getPath('bills')));
-            batch.set(bill1Ref, {
-                billNumber: 'B-100', billDate: '2026-03-10', companyName: 'SAI KUMAR TRANSPORT',
-                billTo: 'Consignee', partyName: party2.name, lrIds: [lr1Ref.id, lr2Ref.id],
-                totalAmount: 22500, status: 'Paid',
-                receivedAmount: 22000, deductionAmount: 500, deductionReason: 'Shortage', remarks: 'Paid via RTGS', paymentDate: '2026-03-12'
-            });
-
-            await batch.commit();
-            showAlert("Test Data Loaded", "Successfully injected mock Parties, LRs, and Bills into your dashboard.");
-        } catch (e) {
-            console.error(e);
-            showAlert("Error", "Could not load test data.");
-        }
     };
 
     const renderView = () => {
@@ -1327,9 +1263,9 @@ function App() {
             <div className="container mx-auto p-2 sm:p-4">
                 <header className="bg-white rounded-lg shadow p-4 mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div className="flex items-center gap-3"><TruckIcon className="h-8 w-8 text-indigo-600" /><h1 className="text-xl sm:text-2xl font-bold">Transport Dashboard</h1></div>
-                    <button onClick={() => handleDeleteRequest("This will add mock data for testing. Proceed?", injectTestData)} className="text-sm bg-indigo-100 text-indigo-700 font-semibold px-3 py-1.5 rounded-md hover:bg-indigo-200 transition-colors">
-                        Load Test Data
-                    </button>
+                    <div className="flex gap-2 items-center">
+                        <button onClick={() => signOut(auth)} className="flex items-center gap-2 text-sm font-semibold text-red-500 hover:text-red-700 transition-colors"><LogOutIcon className="h-5 w-5"/>Logout</button>
+                    </div>
                 </header>
                 <nav className="bg-white rounded-lg shadow p-2 flex flex-wrap gap-2 mb-6">
                     <NavButton icon={<FileTextIcon />} label="LRs" active={view === 'lrs' || view === 'add_lr'} onClick={() => handleSetView('lrs')} />
