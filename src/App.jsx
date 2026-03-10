@@ -12,15 +12,16 @@ import { getFirestore, collection, onSnapshot, doc, addDoc, setDoc, updateDoc, d
      // import { db, auth } from './firebaseConfig.js';
   ======================================================================= */
 
-// --- Firebase Initialization (Canvas Environment) ---
+// --- Firebase Initialization (Remove this block for local use) ---
 const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-// Helper to handle both Canvas and Local database paths automatically
-const getCollPath = (userId, path) => typeof __app_id !== 'undefined' ? `artifacts/${appId}/users/${userId}/${path}` : `users/${userId}/${path}`;
+// Helper to construct paths dynamically (works in both Canvas and Local)
+const getBasePath = (userId) => typeof __app_id !== 'undefined' ? `artifacts/${appId}/users/${userId}` : `users/${userId}`;
+// -----------------------------------------------------------------
 
 
 // --- Icon Components ---
@@ -516,10 +517,10 @@ function LrForm({ userId, setView, parties, existingLr, showAlert, onEditParty }
         try {
             if (existingLr && existingLr.id) {
                 const { id, ...dataToSave } = finalFormData;
-                const lrRef = doc(db, getCollPath(userId, 'lrs'), id);
+                const lrRef = doc(db, getBasePath(userId), 'lrs', id);
                 await setDoc(lrRef, dataToSave);
             } else {
-                await addDoc(collection(db, getCollPath(userId, 'lrs')), finalFormData);
+                await addDoc(collection(db, `${getBasePath(userId)}/lrs`), finalFormData);
             }
             showAlert("Success", `LR #${finalFormData.lrNumber} saved successfully!`);
             setView('lrs');
@@ -579,10 +580,10 @@ function BillingView({ userId, setView, bills, lrs, handleDeleteRequest, handleE
 
     const handleDeleteBill = async (billId, lrIds) => {
         const batch = writeBatch(db);
-        const billRef = doc(db, getCollPath(userId, 'bills'), billId);
+        const billRef = doc(db, `${getBasePath(userId)}/bills`, billId);
         batch.delete(billRef);
         lrIds.forEach(lrId => {
-            const lrRef = doc(db, getCollPath(userId, 'lrs'), lrId);
+            const lrRef = doc(db, `${getBasePath(userId)}/lrs`, lrId);
             batch.update(lrRef, { isBilled: false });
         });
         await batch.commit();
@@ -597,7 +598,7 @@ function BillingView({ userId, setView, bills, lrs, handleDeleteRequest, handleE
 
     const handleSavePayment = async (paymentData) => {
         try {
-            const billRef = doc(db, getCollPath(userId, 'bills'), paymentBill.id);
+            const billRef = doc(db, `${getBasePath(userId)}/bills`, paymentBill.id);
             await updateDoc(billRef, paymentData);
             setPaymentBill(null);
             showAlert("Success", "Payment details saved successfully.");
@@ -723,12 +724,12 @@ function CreateBillForm({ userId, setView, lrs, showAlert, companyConfigs, editi
         
         const batch = writeBatch(db);
         if (editingBill) {
-            batch.update(doc(db, getCollPath(userId, 'bills'), editingBill.id), newBillData);
-            editingBill.lrIds.filter(id => !selectedLrs.includes(id)).forEach(id => batch.update(doc(db, getCollPath(userId, 'lrs'), id), { isBilled: false }));
+            batch.update(doc(db, `${getBasePath(userId)}/bills`, editingBill.id), newBillData);
+            editingBill.lrIds.filter(id => !selectedLrs.includes(id)).forEach(id => batch.update(doc(db, `${getBasePath(userId)}/lrs`, id), { isBilled: false }));
         } else {
-            batch.set(doc(collection(db, getCollPath(userId, 'bills'))), newBillData);
+            batch.set(doc(collection(db, `${getBasePath(userId)}/bills`)), newBillData);
         }
-        selectedLrs.forEach(lrId => batch.update(doc(db, getCollPath(userId, 'lrs'), lrId), { isBilled: true }));
+        selectedLrs.forEach(lrId => batch.update(doc(db, `${getBasePath(userId)}/lrs`, lrId), { isBilled: true }));
         await batch.commit();
         setView('billing');
     };
@@ -850,7 +851,7 @@ function CompanySettingsView({ companyConfigs, setCompanyConfigs, userId, showAl
             [selectedCompany]: { ...companyConfigs[selectedCompany], ...details } 
         };
         try {
-            await setDoc(doc(db, getCollPath(userId, 'settings'), 'companyConfigs'), updatedConfig);
+            await setDoc(doc(db, `${getBasePath(userId)}/settings`, 'companyConfigs'), updatedConfig);
             setCompanyConfigs(updatedConfig);
             showAlert("Success", "Company details successfully updated!");
         } catch (error) {
@@ -866,7 +867,7 @@ function CompanySettingsView({ companyConfigs, setCompanyConfigs, userId, showAl
         updatedConfig[selectedCompany].bankAccounts.push({ ...newAccount });
 
         try {
-            await setDoc(doc(db, getCollPath(userId, 'settings'), 'companyConfigs'), updatedConfig);
+            await setDoc(doc(db, `${getBasePath(userId)}/settings`, 'companyConfigs'), updatedConfig);
             setCompanyConfigs(updatedConfig);
             setNewAccount({ name: '', ac: '', ifsc: '', branch: '' });
             showAlert("Success", "Bank account added.");
@@ -877,7 +878,7 @@ function CompanySettingsView({ companyConfigs, setCompanyConfigs, userId, showAl
         const updatedConfig = { ...companyConfigs };
         updatedConfig[selectedCompany].bankAccounts.splice(index, 1);
         try {
-            await setDoc(doc(db, getCollPath(userId, 'settings'), 'companyConfigs'), updatedConfig);
+            await setDoc(doc(db, `${getBasePath(userId)}/settings`, 'companyConfigs'), updatedConfig);
             setCompanyConfigs(updatedConfig);
             showAlert("Success", "Bank account removed.");
         } catch (error) { showAlert("Error", "Could not remove bank account."); }
@@ -1133,7 +1134,7 @@ function App() {
         if (!user) return;
         const fetchSettings = async () => {
             try {
-                const snap = await getDoc(doc(db, getCollPath(user.uid, 'settings'), 'companyConfigs'));
+                const snap = await getDoc(doc(db, getBasePath(user.uid), 'settings', 'companyConfigs'));
                 if (snap.exists()) setConfigs(snap.data());
             } catch (err) { console.error("Error fetching settings:", err); }
         };
@@ -1178,7 +1179,7 @@ function App() {
         if (!user) { setDataLoaded(false); setLrs([]); setBills([]); setParties([]); return; }
         const unsubscribers = ['lrs', 'bills', 'parties'].map(path => {
             const setter = path === 'lrs' ? setLrs : path === 'bills' ? setBills : setParties;
-            return onSnapshot(query(collection(db, getCollPath(user.uid, path))), (snapshot) => {
+            return onSnapshot(query(collection(db, getBasePath(user.uid), path)), (snapshot) => {
                 setter(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
             });
         });
@@ -1206,7 +1207,7 @@ function App() {
     const handleCancelDelete = () => setConfirmation(null);
     const handleDelete = useCallback(async (id, collectionName) => {
         if (!user) return;
-        try { await deleteDoc(doc(db, getCollPath(user.uid, collectionName), id)); } 
+        try { await deleteDoc(doc(db, getBasePath(user.uid), collectionName, id)); } 
         catch (error) { showAlert("Deletion Failed", `Could not delete the item from ${collectionName}.`); }
     }, [user, showAlert]);
     
@@ -1219,21 +1220,21 @@ function App() {
                 const { id, ...dataToSave } = partyData;
                 const batch = writeBatch(db);
                 const originalParty = parties.find(p => p.id === id);
-                batch.update(doc(db, getCollPath(user.uid, 'parties'), id), dataToSave);
+                batch.update(doc(db, getBasePath(user.uid), 'parties', id), dataToSave);
 
-                const lrsCnorSnap = await getDocs(query(collection(db, getCollPath(user.uid, 'lrs')), where('consignor.name', '==', originalParty.name)));
+                const lrsCnorSnap = await getDocs(query(collection(db, getBasePath(user.uid), 'lrs'), where('consignor.name', '==', originalParty.name)));
                 lrsCnorSnap.forEach(docSnap => batch.update(docSnap.ref, { consignor: dataToSave }));
 
-                const lrsCneeSnap = await getDocs(query(collection(db, getCollPath(user.uid, 'lrs')), where('consignee.name', '==', originalParty.name)));
+                const lrsCneeSnap = await getDocs(query(collection(db, getBasePath(user.uid), 'lrs'), where('consignee.name', '==', originalParty.name)));
                 lrsCneeSnap.forEach(docSnap => batch.update(docSnap.ref, { consignee: dataToSave }));
 
-                const billsSnap = await getDocs(query(collection(db, getCollPath(user.uid, 'bills')), where('partyName', '==', originalParty.name)));
+                const billsSnap = await getDocs(query(collection(db, getBasePath(user.uid), 'bills'), where('partyName', '==', originalParty.name)));
                 billsSnap.forEach(docSnap => batch.update(docSnap.ref, { partyName: dataToSave.name }));
                 
                 await batch.commit();
                 showAlert("Success", "Party updated successfully across all records.");
             } else {
-                await addDoc(collection(db, getCollPath(user.uid, 'parties')), { ...partyData, createdAt: new Date().toISOString() });
+                await addDoc(collection(db, getBasePath(user.uid), 'parties'), { ...partyData, createdAt: new Date().toISOString() });
                 showAlert("Success", "New party added successfully.");
             }
         } catch (error) { showAlert("Save Failed", "Could not save the party details."); } 
