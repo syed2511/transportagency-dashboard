@@ -1135,12 +1135,9 @@ function App() {
     
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
-            setUser(user);
+            setUser(user); 
             setLoading(false);
-            if (!user) { 
-                setDataLoaded(false); 
-                localStorage.clear(); 
-            }
+            if (!user) { setDataLoaded(false); localStorage.clear(); }
         });
         return () => unsubscribe();
     }, []);
@@ -1224,7 +1221,9 @@ function App() {
         }
     };
 
-    if (loading || !user || (!dataLoaded && user) || (!scriptsLoaded && user)) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><p className="text-xl font-semibold text-slate-500">Loading Application...</p></div>;
+    if (loading || (!dataLoaded && user) || (!scriptsLoaded && user)) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><p className="text-xl font-semibold text-slate-500">Loading Application...</p></div>;
+    
+    if (!user) return <LoginScreen showAlert={showAlert} />;
     
     return (
         <div className="bg-slate-50 min-h-screen font-sans text-slate-800">
