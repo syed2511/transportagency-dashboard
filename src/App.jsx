@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { db, auth } from './firebaseConfig.js';
+import { db, auth } from './firebaseConfig.js'; // Uses your local configuration
 import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { collection, onSnapshot, doc, addDoc, setDoc, updateDoc, deleteDoc, where, query, writeBatch, getDocs, getDoc } from "firebase/firestore";
 
@@ -103,7 +103,7 @@ const generatePdfForBill = (bill, lrsInBill, showAlert, companyConfigs) => {
     try {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        const config = companyConfigs[bill.companyName];
+        const config = companyConfigs[bill.companyName] || defaultCompanyConfigs[bill.companyName];
         if (!config) { showAlert("Config Error", `No bill format configured for ${bill.companyName}`); return; }
         const party = bill.billTo === 'Consignor' ? lrsInBill[0].consignor : lrsInBill[0].consignee;
 
@@ -264,7 +264,7 @@ const generateDueStatementPDF = (party, bills, lrs, showAlert, companyConfigs) =
     try {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        const config = companyConfigs[party.companyName] || { header: party.companyName };
+        const config = companyConfigs[party.companyName] || defaultCompanyConfigs[party.companyName] || { header: party.companyName };
         
         doc.setFontSize(18);
         doc.setFont('helvetica', 'bold');
@@ -496,10 +496,10 @@ function LrForm({ userId, setView, parties, existingLr, showAlert, onEditParty }
         try {
             if (existingLr && existingLr.id) {
                 const { id, ...dataToSave } = finalFormData;
-                const lrRef = doc(db, `users/${userId}/lrs`, id);
+                const lrRef = doc(db, 'users', userId, 'lrs', id);
                 await setDoc(lrRef, dataToSave);
             } else {
-                await addDoc(collection(db, `users/${userId}/lrs`), finalFormData);
+                await addDoc(collection(db, 'users', userId, 'lrs'), finalFormData);
             }
             showAlert("Success", `LR #${finalFormData.lrNumber} saved successfully!`);
             setView('lrs');
@@ -559,10 +559,10 @@ function BillingView({ userId, setView, bills, lrs, handleDeleteRequest, handleE
 
     const handleDeleteBill = async (billId, lrIds) => {
         const batch = writeBatch(db);
-        const billRef = doc(db, `users/${userId}/bills`, billId);
+        const billRef = doc(db, 'users', userId, 'bills', billId);
         batch.delete(billRef);
         lrIds.forEach(lrId => {
-            const lrRef = doc(db, `users/${userId}/lrs`, lrId);
+            const lrRef = doc(db, 'users', userId, 'lrs', lrId);
             batch.update(lrRef, { isBilled: false });
         });
         await batch.commit();
@@ -577,7 +577,7 @@ function BillingView({ userId, setView, bills, lrs, handleDeleteRequest, handleE
 
     const handleSavePayment = async (paymentData) => {
         try {
-            const billRef = doc(db, `users/${userId}/bills`, paymentBill.id);
+            const billRef = doc(db, 'users', userId, 'bills', paymentBill.id);
             await updateDoc(billRef, paymentData);
             setPaymentBill(null);
             showAlert("Success", "Payment details saved successfully.");
@@ -703,12 +703,12 @@ function CreateBillForm({ userId, setView, lrs, showAlert, companyConfigs, editi
         
         const batch = writeBatch(db);
         if (editingBill) {
-            batch.update(doc(db, `users/${userId}/bills`, editingBill.id), newBillData);
-            editingBill.lrIds.filter(id => !selectedLrs.includes(id)).forEach(id => batch.update(doc(db, `users/${userId}/lrs`, id), { isBilled: false }));
+            batch.update(doc(db, 'users', userId, 'bills', editingBill.id), newBillData);
+            editingBill.lrIds.filter(id => !selectedLrs.includes(id)).forEach(id => batch.update(doc(db, 'users', userId, 'lrs', id), { isBilled: false }));
         } else {
-            batch.set(doc(collection(db, `users/${userId}/bills`)), newBillData);
+            batch.set(doc(collection(db, 'users', userId, 'bills')), newBillData);
         }
-        selectedLrs.forEach(lrId => batch.update(doc(db, `users/${userId}/lrs`, lrId), { isBilled: true }));
+        selectedLrs.forEach(lrId => batch.update(doc(db, 'users', userId, 'lrs', lrId), { isBilled: true }));
         await batch.commit();
         setView('billing');
     };
@@ -830,7 +830,7 @@ function CompanySettingsView({ companyConfigs, setCompanyConfigs, userId, showAl
             [selectedCompany]: { ...companyConfigs[selectedCompany], ...details } 
         };
         try {
-            await setDoc(doc(db, `users/${userId}/settings`, 'companyConfigs'), updatedConfig);
+            await setDoc(doc(db, 'users', userId, 'settings', 'companyConfigs'), updatedConfig);
             setCompanyConfigs(updatedConfig);
             showAlert("Success", "Company details successfully updated!");
         } catch (error) {
@@ -846,7 +846,7 @@ function CompanySettingsView({ companyConfigs, setCompanyConfigs, userId, showAl
         updatedConfig[selectedCompany].bankAccounts.push({ ...newAccount });
 
         try {
-            await setDoc(doc(db, `users/${userId}/settings`, 'companyConfigs'), updatedConfig);
+            await setDoc(doc(db, 'users', userId, 'settings', 'companyConfigs'), updatedConfig);
             setCompanyConfigs(updatedConfig);
             setNewAccount({ name: '', ac: '', ifsc: '', branch: '' });
             showAlert("Success", "Bank account added.");
@@ -857,7 +857,7 @@ function CompanySettingsView({ companyConfigs, setCompanyConfigs, userId, showAl
         const updatedConfig = { ...companyConfigs };
         updatedConfig[selectedCompany].bankAccounts.splice(index, 1);
         try {
-            await setDoc(doc(db, `users/${userId}/settings`, 'companyConfigs'), updatedConfig);
+            await setDoc(doc(db, 'users', userId, 'settings', 'companyConfigs'), updatedConfig);
             setCompanyConfigs(updatedConfig);
             showAlert("Success", "Bank account removed.");
         } catch (error) { showAlert("Error", "Could not remove bank account."); }
@@ -1113,7 +1113,7 @@ function App() {
         if (!user) return;
         const fetchSettings = async () => {
             try {
-                const snap = await getDoc(doc(db, `users/${user.uid}/settings`, 'companyConfigs'));
+                const snap = await getDoc(doc(db, 'users', user.uid, 'settings', 'companyConfigs'));
                 if (snap.exists()) setConfigs(snap.data());
             } catch (err) { console.error("Error fetching settings:", err); }
         };
@@ -1135,24 +1135,43 @@ function App() {
     
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
-            setUser(user); 
+            setUser(user);
             setLoading(false);
-            if (!user) { setDataLoaded(false); localStorage.clear(); }
+            if (!user) {
+                setDataLoaded(false);
+                localStorage.clear();
+            }
         });
         return () => unsubscribe();
     }, []);
     
     useEffect(() => {
-        if (!user) { setDataLoaded(false); setLrs([]); setBills([]); setParties([]); return; }
-        const unsubscribers = ['lrs', 'bills', 'parties'].map(path => {
-            const setter = path === 'lrs' ? setLrs : path === 'bills' ? setBills : setParties;
-            return onSnapshot(query(collection(db, `users/${user.uid}/${path}`)), (snapshot) => {
-                setter(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+        if (!user) {
+            setDataLoaded(false);
+            setLrs([]); setBills([]); setParties([]);
+            return;
+        }
+
+        const collectionsToWatch = {
+            lrs: setLrs,
+            bills: setBills,
+            parties: setParties
+        };
+
+        const unsubscribers = Object.entries(collectionsToWatch).map(([path, setter]) => {
+            const q = query(collection(db, 'users', user.uid, path));
+            return onSnapshot(q, (snapshot) => {
+                const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                setter(data);
+            }, (error) => {
+                console.error(`Firestore listener error on ${path}:`, error);
+                showAlert("Database Error", `Failed to load data for ${path}. Please refresh the page.`);
             });
         });
+
         setDataLoaded(true);
         return () => unsubscribers.forEach(unsub => unsub());
-    }, [user]);
+    }, [user, showAlert]);
 
     const handleSetView = (newView) => { setEditingLr(null); setEditingBill(null); localStorage.removeItem('editingLrId'); setView(newView); };
     const handleEditLr = (lr) => { localStorage.setItem('editingLrId', lr.id); setEditingLr(lr); setView('add_lr'); };
@@ -1174,7 +1193,7 @@ function App() {
     const handleCancelDelete = () => setConfirmation(null);
     const handleDelete = useCallback(async (id, collectionName) => {
         if (!user) return;
-        try { await deleteDoc(doc(db, `users/${user.uid}/${collectionName}`, id)); } 
+        try { await deleteDoc(doc(db, 'users', user.uid, collectionName, id)); } 
         catch (error) { showAlert("Deletion Failed", `Could not delete the item from ${collectionName}.`); }
     }, [user, showAlert]);
     
@@ -1187,21 +1206,21 @@ function App() {
                 const { id, ...dataToSave } = partyData;
                 const batch = writeBatch(db);
                 const originalParty = parties.find(p => p.id === id);
-                batch.update(doc(db, `users/${user.uid}/parties`, id), dataToSave);
+                batch.update(doc(db, 'users', user.uid, 'parties', id), dataToSave);
 
-                const lrsCnorSnap = await getDocs(query(collection(db, `users/${user.uid}/lrs`), where('consignor.name', '==', originalParty.name)));
+                const lrsCnorSnap = await getDocs(query(collection(db, 'users', user.uid, 'lrs'), where('consignor.name', '==', originalParty.name)));
                 lrsCnorSnap.forEach(docSnap => batch.update(docSnap.ref, { consignor: dataToSave }));
 
-                const lrsCneeSnap = await getDocs(query(collection(db, `users/${user.uid}/lrs`), where('consignee.name', '==', originalParty.name)));
+                const lrsCneeSnap = await getDocs(query(collection(db, 'users', user.uid, 'lrs'), where('consignee.name', '==', originalParty.name)));
                 lrsCneeSnap.forEach(docSnap => batch.update(docSnap.ref, { consignee: dataToSave }));
 
-                const billsSnap = await getDocs(query(collection(db, `users/${user.uid}/bills`), where('partyName', '==', originalParty.name)));
+                const billsSnap = await getDocs(query(collection(db, 'users', user.uid, 'bills'), where('partyName', '==', originalParty.name)));
                 billsSnap.forEach(docSnap => batch.update(docSnap.ref, { partyName: dataToSave.name }));
                 
                 await batch.commit();
                 showAlert("Success", "Party updated successfully across all records.");
             } else {
-                await addDoc(collection(db, `users/${user.uid}/parties`), { ...partyData, createdAt: new Date().toISOString() });
+                await addDoc(collection(db, 'users', user.uid, 'parties'), { ...partyData, createdAt: new Date().toISOString() });
                 showAlert("Success", "New party added successfully.");
             }
         } catch (error) { showAlert("Save Failed", "Could not save the party details."); } 
@@ -1221,9 +1240,13 @@ function App() {
         }
     };
 
-    if (loading || (!dataLoaded && user) || (!scriptsLoaded && user)) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><p className="text-xl font-semibold text-slate-500">Loading Application...</p></div>;
+    if (loading || (!dataLoaded && user) || (!scriptsLoaded && user)) {
+        return <div className="min-h-screen flex items-center justify-center bg-slate-50"><p className="text-xl font-semibold text-slate-500">Loading Application...</p></div>;
+    }
     
-    if (!user) return <LoginScreen showAlert={showAlert} />;
+    if (!user) {
+        return <LoginScreen showAlert={showAlert} />;
+    }
     
     return (
         <div className="bg-slate-50 min-h-screen font-sans text-slate-800">
